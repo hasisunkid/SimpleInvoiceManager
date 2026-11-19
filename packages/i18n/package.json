@@ -1,0 +1,20 @@
+{
+  "name": "@sim/i18n",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Translations de / pl / en for UI and PDF labels",
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  }
+}

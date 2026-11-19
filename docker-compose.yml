@@ -1,0 +1,63 @@
+# Local development / testing (AR-17).
+#   docker compose up --build            → app on http://localhost:8099
+#   docker compose --profile tools up    → additionally Adminer on http://localhost:8080
+# Values below are for local use only. Override them in a .env file (see .env.example).
+name: simpleinvoice
+
+services:
+  db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+      MARIADB_DATABASE: ${DB_NAME:-simpleinvoice}
+      MARIADB_USER: ${DB_USER:-simpleinvoice}
+      MARIADB_PASSWORD: ${DB_PASSWORD:-simpleinvoice}
+    healthcheck:
+      test: ['CMD', 'healthcheck.sh', '--connect', '--innodb_initialized']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - db-data:/var/lib/mysql
+    ports:
+      - '127.0.0.1:${DB_PUBLISHED_PORT:-3306}:3306'
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: simpleinvoice-manager:dev
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-simpleinvoice}
+      DB_PASSWORD: ${DB_PASSWORD:-simpleinvoice}
+      DB_NAME: ${DB_NAME:-simpleinvoice}
+      DATA_DIR: /data
+      SESSION_SECRET: ${SESSION_SECRET:-local-dev-only-session-secret-0123456789}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-admin-local-dev}
+      PORT: 8099
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SEED_DEMO: ${SEED_DEMO:-true}
+    ports:
+      - '${APP_PUBLISHED_PORT:-8099}:8099'
+    volumes:
+      - app-data:/data
+
+  adminer:
+    image: adminer:5
+    profiles: [tools]
+    depends_on: [db]
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+    ports:
+      - '127.0.0.1:8080:8080'
+
+volumes:
+  db-data:
+  app-data:

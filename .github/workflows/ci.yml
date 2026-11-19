@@ -1,0 +1,58 @@
+# TR-08: lint, type-check, tests and image build on every push.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, type-check, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      # Integration tests start MariaDB via Testcontainers (Docker is available on the runner).
+      - run: npm run test:coverage
+
+  container:
+    name: Image build (amd64 + arm64) and compose smoke test
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Build multi-arch image (TR-07)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: docker compose up and wait for /api/health (TR-07)
+        run: |
+          docker compose up -d --build --wait
+          curl --fail --silent http://localhost:8099/api/health
+          curl --fail --silent --output /dev/null http://localhost:8099/
+      - name: Container logs
+        if: always()
+        run: docker compose logs
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

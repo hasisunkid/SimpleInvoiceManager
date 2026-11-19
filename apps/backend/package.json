@@ -1,0 +1,28 @@
+{
+  "name": "@sim/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsx watch --conditions=source src/server.ts",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@fastify/static": "^10.1.12",
+    "@fastify/swagger": "^9.5.2",
+    "@fastify/type-provider-typebox": "^5.2.0",
+    "@sim/domain": "0.1.0",
+    "@sim/i18n": "0.1.0",
+    "@sinclair/typebox": "^0.34.41",
+    "fastify": "^5.6.1",
+    "knex": "^3.1.0",
+    "mysql2": "^3.15.3"
+  },
+  "devDependencies": {
+    "@testcontainers/mariadb": "^11.7.1",
+    "pino-pretty": "^13.1.2",
+    "tsx": "^4.20.6"
+  }
+}
