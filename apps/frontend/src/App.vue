@@ -30,8 +30,11 @@ async function signOut(): Promise<void> {
 
     <nav v-if="showNav" class="tabbar" :aria-label="t('nav.main')">
       <RouterLink :to="{ name: 'home' }" class="tabbar__item">{{ t('nav.home') }}</RouterLink>
-      <RouterLink v-if="isAdmin" :to="{ name: 'users' }" class="tabbar__item">
-        {{ t('nav.users') }}
+      <RouterLink :to="{ name: 'company' }" class="tabbar__item">
+        {{ t('nav.company') }}
+      </RouterLink>
+      <RouterLink v-if="isAdmin" :to="{ name: 'settings' }" class="tabbar__item">
+        {{ t('nav.settings') }}
       </RouterLink>
       <RouterLink :to="{ name: 'profile' }" class="tabbar__item">
         {{ t('nav.profile') }}

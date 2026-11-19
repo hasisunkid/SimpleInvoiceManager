@@ -1,15 +1,18 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { inject } from 'vitest';
 import { loadConfig, type Config } from '../../src/config.js';
 import { createDb, ensureDatabase, migrateLatest, type Db } from '../../src/db.js';
 
 /**
  * Integration tests run against a real MariaDB (TR-02), started once in global-setup.ts.
- * Each test file gets its own, freshly created database.
+ * Each test database gets its own, freshly created database and a temporary DATA_DIR.
  */
 export interface TestDatabase {
   readonly config: Config;
   readonly db: Db;
-  /** Drops the database and closes the pool. */
+  /** Drops the database, removes the data directory and closes the pool. */
   drop(): Promise<void>;
 }
 
@@ -24,6 +27,7 @@ export function testConfig(name: string): Config {
     DB_USER: server.user,
     DB_PASSWORD: server.password,
     DB_NAME: `t_${name}_${process.pid}_${counter}`,
+    DATA_DIR: mkdtempSync(path.join(tmpdir(), `sim-${name}-`)),
     SESSION_SECRET: 'test-session-secret-'.padEnd(40, 'x'),
     LOG_LEVEL: 'silent',
   });
@@ -44,6 +48,7 @@ export async function createTestDatabase(
     drop: async () => {
       await db.raw('DROP DATABASE IF EXISTS ??', [config.db.database]).catch(() => {});
       await db.destroy();
+      rmSync(config.dataDir, { recursive: true, force: true });
     },
   };
 }

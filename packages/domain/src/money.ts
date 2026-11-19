@@ -77,3 +77,21 @@ export function formatMoney(amount: Cents, language: DocumentLanguage): string {
   const signed = negative ? `-${text}` : text;
   return language === 'en' ? `€${signed}`.replace('€-', '-€') : `${signed} €`;
 }
+
+/**
+ * Quantities are stored as integer thousandths (FR-INV-03: 3 decimals), e.g. 1.5 h = 1500.
+ * Formatting drops trailing zeros: 1000 → "1", 1500 → "1,5", 1250 → "1,25".
+ */
+export function formatQuantity(milli: number, language: DocumentLanguage): string {
+  if (!Number.isSafeInteger(milli)) throw new RangeError(`Invalid quantity ${milli}`);
+  const negative = milli < 0;
+  const abs = Math.abs(milli);
+  const whole = new Intl.NumberFormat(LOCALE[language], { useGrouping: true }).format(
+    Math.trunc(abs / 1000),
+  );
+  const frac = String(abs % 1000)
+    .padStart(3, '0')
+    .replace(/0+$/, '');
+  const text = frac ? `${whole}${language === 'en' ? '.' : ','}${frac}` : whole;
+  return negative ? `-${text}` : text;
+}

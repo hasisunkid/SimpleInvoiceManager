@@ -42,6 +42,8 @@ export const ErrorSchema = Type.Object({
   error: Type.String(),
   message: Type.String(),
   retryAfterSeconds: Type.Optional(Type.Integer()),
+  /** Per-field problem codes for form validation, e.g. { iban: 'INVALID_IBAN' }. */
+  fields: Type.Optional(Type.Record(Type.String(), Type.String())),
 });
 export type ErrorBody = Static<typeof ErrorSchema>;
 

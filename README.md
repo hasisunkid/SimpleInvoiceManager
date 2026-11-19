@@ -4,7 +4,7 @@ Small web app for tradespeople (Handwerker) to write, manage and track invoices 
 smartphone. Runs as a **Home Assistant App** on top of the HA MariaDB app, or standalone with
 Docker Compose. Requirements: [.claude/REQUIREMENTS.md](.claude/REQUIREMENTS.md).
 
-**Status:** milestones **M0 – Skeleton** and **M1 – Auth & users** done (see [Milestones](#milestones)).
+**Status:** milestones **M0–M2** done (see [Milestones](#milestones)).
 
 ## Quick start (Docker Compose)
 
@@ -63,9 +63,9 @@ The app is configured **only** through environment variables. In Home Assistant 
 ## Architecture
 
 ```
-apps/backend      Fastify 5 API, Knex migrations, (later) PDF renderer – serves the built SPA
+apps/backend      Fastify 5 API, Knex migrations, PDF renderer (pdfmake) – serves the built SPA
 apps/frontend     Vue 3 + Vite SPA, mobile-first, hash routing, relative URLs (Ingress)
-packages/domain   Pure TypeScript: money (integer cents), dates, later invoice calculation
+packages/domain   Pure TypeScript: money (integer cents), dates, IBAN/tax IDs, numbering, later calculation
 packages/i18n     de / pl / en translations for UI and PDF (German = reference shape)
 docker/           Multi-stage Dockerfile (amd64 + arm64)
 docs/adr/         Architecture decision records
@@ -77,6 +77,8 @@ docs/adr/         Architecture decision records
 - Migrations run automatically at startup, forward-only.
 - Auth: own users (argon2id), DB sessions in an HttpOnly cookie, CSRF header, default-deny
   route guard, login throttling – see [ADR 0005](docs/adr/0005-authentication.md).
+- PDFs: pdfmake with embedded Roboto, behind an `InvoiceRenderer` interface; logos are
+  stored under `DATA_DIR` (SVG converted to PNG) – see [ADR 0006](docs/adr/0006-pdf-rendering-and-logos.md).
 - Every error response is `{ "error": "<CODE>", "message": "…" }`; the UI translates the code.
 - Logs are JSON on stdout; SIGTERM triggers a graceful shutdown.
 
@@ -88,8 +90,8 @@ Design decisions: [docs/adr/](docs/adr/).
 | --- | ---------------------------- | ------- |
 | M0  | Skeleton                     | ✅ done |
 | M1  | Auth & users                 | ✅ done |
-| M2  | Company, style, numbering    | next    |
-| M3  | Customers & catalogue        |         |
+| M2  | Company, style, numbering    | ✅ done |
+| M3  | Customers & catalogue        | next    |
 | M4  | Invoice editor & calculation |         |
 | M5  | PDF                          |         |
 | M6  | Lifecycle & overview (+ E2E) |         |
@@ -114,3 +116,17 @@ one printed once in the log) and forces a password change at first login. Afterw
   changing the password signs out all other devices.
 - "Stay signed in" keeps the session for 30 days, otherwise 12 hours. Five wrong passwords lock
   the username for one minute.
+
+### M2 demo note
+
+- **Company** tab (every user): address, contact, Steuernummer / USt-IdNr., VAT mode (regular or
+  Kleinunternehmer § 19 UStG), bank details with IBAN/BIC check, defaults (payment term, VAT
+  rate, signature) and intro/closing texts in de/pl/en. A checklist shows what is still missing
+  before invoices can be finalized.
+- **Settings → Invoice design** (admin): upload a logo (PNG/JPG/SVG ≤ 2 MB), choose left/right
+  and the accent colour, and open a sample invoice PDF with the unsaved settings in any of the
+  three languages.
+- **Settings → Invoice numbers** (admin): start number (e.g. 104 as in the reference invoices),
+  optional prefix with `{YYYY}`, zero padding and yearly restart, with a live example. Numbers
+  are only assigned when an invoice is finalized (M5) – 25 parallel finalizations get 25
+  consecutive numbers without gaps (TR-03).

@@ -1,9 +1,9 @@
 import { de } from './de.js';
 import { en } from './en.js';
 import { pl } from './pl.js';
-import type { Messages } from './types.js';
+import type { MessageKey, Messages } from './types.js';
 
-export type { Messages } from './types.js';
+export type { MessageKey, Messages } from './types.js';
 
 export const LANGUAGES = ['de', 'pl', 'en'] as const;
 export type Language = (typeof LANGUAGES)[number];
@@ -25,6 +25,24 @@ export function negotiateLanguage(preferences: readonly string[]): Language {
     if (isLanguage(primary)) return primary;
   }
   return FALLBACK_LANGUAGE;
+}
+
+/**
+ * Framework-free translation for server-side use (PDF labels, FR-I18N-02). Supports the same
+ * `{name}` placeholders as vue-i18n; unknown placeholders are left as they are.
+ */
+export function translate(
+  language: Language,
+  key: MessageKey,
+  params: Readonly<Record<string, string | number>> = {},
+): string {
+  const text = key
+    .split('.')
+    .reduce<unknown>((node, part) => (node as Record<string, unknown>)[part], messages[language]);
+  if (typeof text !== 'string') throw new Error(`Missing translation ${language}:${key}`);
+  return text.replace(/\{(\w+)\}/g, (match, name: string) =>
+    name in params ? String(params[name]) : match,
+  );
 }
 
 /** Flattens nested messages into dotted keys – used by the completeness test (TR-05). */

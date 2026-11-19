@@ -60,6 +60,7 @@ export function useErrorText() {
     const key = `errors.${code}`;
     if (!te(key)) return t('errors.UNKNOWN');
     const seconds = err instanceof ApiError ? (err.retryAfterSeconds ?? 60) : 60;
-    return t(key, { seconds });
+    // `year` fills the {YYYY} placeholder mentioned in numbering errors.
+    return t(key, { seconds, year: '{YYYY}' });
   };
 }

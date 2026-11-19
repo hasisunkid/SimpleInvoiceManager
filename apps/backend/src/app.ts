@@ -10,10 +10,16 @@ import fastifySwagger from '@fastify/swagger';
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import type { Config } from './config.js';
 import type { Db } from './db.js';
+import { handleError } from './errors.js';
 import { registerAuthGuard } from './auth/guard.js';
 import { createLoginRateLimiter, type LoginRateLimiter } from './auth/rate-limiter.js';
 import { SessionStore } from './auth/sessions.js';
+import { FileStore } from './files/store.js';
+import { PdfMakeInvoiceRenderer } from './pdf/pdfmake-renderer.js';
+import type { InvoiceRenderer } from './pdf/types.js';
 import { authRoutes } from './routes/auth.js';
+import { companyRoutes } from './routes/company.js';
+import { settingsRoutes } from './routes/settings.js';
 import { healthRoutes } from './routes/health.js';
 import { meRoutes } from './routes/me.js';
 import { userRoutes } from './routes/users.js';
@@ -34,6 +40,8 @@ export interface AppDeps {
   readonly logger?: FastifyServerOptions['logger'];
   /** Injectable for tests; defaults to 5 failures → 1 min lock per username (FR-AUTH-06). */
   readonly rateLimiter?: LoginRateLimiter;
+  /** AR-06: injectable invoice renderer (default: pdfmake). */
+  readonly renderer?: InvoiceRenderer;
 }
 
 /** Accepts only a plain absolute path from the ingress header – never a URL. */
@@ -48,6 +56,7 @@ export async function buildApp({
   db,
   logger = false,
   rateLimiter = createLoginRateLimiter(),
+  renderer = new PdfMakeInvoiceRenderer(),
 }: AppDeps): Promise<FastifyInstance> {
   const app = Fastify({
     logger,
@@ -61,17 +70,7 @@ export async function buildApp({
   });
 
   // Uniform error body { error, message } (NFR-UX-03: the UI translates the code).
-  app.setErrorHandler<FastifyError>((err, request, reply) => {
-    if (err.validation) {
-      return reply.code(400).send({ error: 'VALIDATION_FAILED', message: err.message });
-    }
-    const status = err.statusCode ?? 500;
-    if (status >= 500) {
-      request.log.error({ err }, 'unhandled error');
-      return reply.code(500).send({ error: 'INTERNAL', message: 'Internal server error' });
-    }
-    return reply.code(status).send({ error: err.code ?? 'BAD_REQUEST', message: err.message });
-  });
+  app.setErrorHandler<FastifyError>(handleError);
 
   await app.register(fastifyCookie);
   await app.register(fastifySwagger, {
@@ -89,6 +88,7 @@ export async function buildApp({
   });
 
   const sessions = new SessionStore(db, config.sessionSecret);
+  const files = new FileStore(db, config.dataDir);
 
   await app.register(
     async (api) => {
@@ -97,6 +97,8 @@ export async function buildApp({
       await api.register(authRoutes, { db, sessions, rateLimiter });
       await api.register(meRoutes, { db, sessions });
       await api.register(userRoutes, { db, sessions });
+      await api.register(companyRoutes, { db });
+      await api.register(settingsRoutes, { db, files, renderer });
       api.get('/openapi.json', { config: { public: true }, schema: { hide: true } }, async () =>
         app.swagger(),
       );

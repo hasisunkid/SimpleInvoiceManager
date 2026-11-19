@@ -49,3 +49,19 @@ describe('negotiateLanguage (FR-I18N-01)', () => {
     expect(negotiateLanguage([])).toBe('de');
   });
 });
+
+describe('translate (server-side, FR-I18N-02)', () => {
+  it('looks up nested keys and fills placeholders', async () => {
+    const { translate } = await import('../src/index.js');
+    expect(translate('de', 'pdf.invoice')).toBe('Rechnung');
+    expect(translate('pl', 'pdf.page', { page: 1, pages: 2 })).toBe('Strona 1 z 2');
+    expect(translate('en', 'pdf.vatRate', { rate: 19 })).toBe('VAT 19 %');
+    expect(translate('de', 'pdf.days')).toBe('{days} Tage');
+  });
+
+  it('throws for keys that are not texts', async () => {
+    const { translate } = await import('../src/index.js');
+    // @ts-expect-error – "pdf" is a group, not a text
+    expect(() => translate('de', 'pdf')).toThrow(/Missing translation/);
+  });
+});

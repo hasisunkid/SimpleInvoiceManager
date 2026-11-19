@@ -37,6 +37,8 @@ export class ApiError extends Error {
     readonly code: string,
     message: string,
     readonly retryAfterSeconds?: number,
+    /** Per-field problem codes from form validation, e.g. { iban: 'INVALID_IBAN' }. */
+    readonly fields: Readonly<Record<string, string>> = {},
   ) {
     super(message);
     this.name = 'ApiError';
@@ -57,38 +59,75 @@ export function setUnauthenticatedHandler(handler: () => void): void {
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
-export async function apiRequest<T>(method: Method, path: string, body?: unknown): Promise<T> {
-  const headers: Record<string, string> = { Accept: 'application/json' };
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
+interface RequestOptions {
+  /** JSON body (serialized) … */
+  json?: unknown;
+  /** … or a raw body such as an uploaded file, sent with its own content type. */
+  raw?: Blob;
+  /** Parse the response as JSON (default) or return it as a Blob (PDFs, images). */
+  as?: 'json' | 'blob';
+}
+
+async function send(method: Method, path: string, options: RequestOptions): Promise<Response> {
+  const headers: Record<string, string> = {
+    Accept: options.as === 'blob' ? '*/*' : 'application/json',
+  };
+  let body: BodyInit | undefined;
+  if (options.raw) {
+    headers['Content-Type'] = options.raw.type || 'application/octet-stream';
+    body = options.raw;
+  } else if (options.json !== undefined) {
+    headers['Content-Type'] = 'application/json';
+    body = JSON.stringify(options.json);
+  }
   // FR-AUTH-07: every state-changing request carries the CSRF token (any value before login).
   if (method !== 'GET') headers['X-CSRF-Token'] = csrfToken ?? 'anonymous';
-
-  let res: Response;
   try {
-    res = await fetch(`api/${path}`, {
+    return await fetch(`api/${path}`, {
       method,
       headers,
       credentials: 'same-origin',
-      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      ...(body !== undefined ? { body } : {}),
     });
   } catch {
     throw new ApiError(0, 'NETWORK', 'Network error');
   }
+}
 
+async function request<T>(method: Method, path: string, options: RequestOptions = {}): Promise<T> {
+  const res = await send(method, path, options);
+  if (res.ok && options.as === 'blob') return (await res.blob()) as T;
   if (res.status === 204) return undefined as T;
   const data = (await res.json().catch(() => null)) as
-    (T & { error?: string; message?: string; retryAfterSeconds?: number }) | null;
+    | (T & {
+        error?: string;
+        message?: string;
+        retryAfterSeconds?: number;
+        fields?: Record<string, string>;
+      })
+    | null;
   if (!res.ok) {
     const code = data?.error ?? 'UNKNOWN';
     if (res.status === 401 && code === 'UNAUTHENTICATED') onUnauthenticated?.();
-    throw new ApiError(res.status, code, data?.message ?? res.statusText, data?.retryAfterSeconds);
+    throw new ApiError(
+      res.status,
+      code,
+      data?.message ?? res.statusText,
+      data?.retryAfterSeconds,
+      data?.fields,
+    );
   }
   return data as T;
 }
 
 export const api = {
-  get: <T>(path: string) => apiRequest<T>('GET', path),
-  post: <T>(path: string, body: unknown = {}) => apiRequest<T>('POST', path, body),
-  put: <T>(path: string, body: unknown) => apiRequest<T>('PUT', path, body),
-  patch: <T>(path: string, body: unknown) => apiRequest<T>('PATCH', path, body),
+  get: <T>(path: string) => request<T>('GET', path),
+  post: <T>(path: string, body: unknown = {}) => request<T>('POST', path, { json: body }),
+  put: <T>(path: string, body: unknown) => request<T>('PUT', path, { json: body }),
+  patch: <T>(path: string, body: unknown) => request<T>('PATCH', path, { json: body }),
+  /** Uploads a file as the raw request body (logo upload). */
+  upload: <T>(path: string, file: Blob) => request<T>('POST', path, { raw: file }),
+  /** POSTs JSON and returns the binary response, e.g. a PDF preview. */
+  postForBlob: (path: string, body: unknown) =>
+    request<Blob>('POST', path, { json: body, as: 'blob' }),
 };

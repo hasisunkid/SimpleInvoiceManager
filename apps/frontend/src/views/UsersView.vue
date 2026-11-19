@@ -24,6 +24,7 @@ onMounted(async () => {
 
 <template>
   <main class="page">
+    <RouterLink :to="{ name: 'settings' }" class="back-link">{{ t('common.back') }}</RouterLink>
     <div class="page__head">
       <h1>{{ t('users.title') }}</h1>
       <RouterLink :to="{ name: 'user-new' }" class="button primary">{{

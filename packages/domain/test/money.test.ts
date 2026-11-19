@@ -1,6 +1,27 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
-import { addCents, cents, divRoundHalfUp, formatMoney, parseMoney } from '../src/index.js';
+import {
+  addCents,
+  cents,
+  divRoundHalfUp,
+  formatMoney,
+  formatQuantity,
+  parseMoney,
+} from '../src/index.js';
+
+describe('formatQuantity', () => {
+  it('drops trailing zeros and uses the language separator', () => {
+    expect(formatQuantity(1000, 'de')).toBe('1');
+    expect(formatQuantity(1500, 'de')).toBe('1,5');
+    expect(formatQuantity(1250, 'en')).toBe('1.25');
+    expect(formatQuantity(1_234_005, 'de')).toBe('1.234,005');
+    expect(formatQuantity(-500, 'de')).toBe('-0,5');
+  });
+
+  it('rejects non-integers', () => {
+    expect(() => formatQuantity(1.5, 'de')).toThrow(RangeError);
+  });
+});
 
 describe('cents', () => {
   it('accepts integers and rejects fractions / unsafe values', () => {

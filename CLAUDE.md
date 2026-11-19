@@ -36,6 +36,11 @@ Before reporting work as done: `npm run lint && npm run typecheck && npm test` m
   admin-only routes set `config: { admin: true }`. Errors are `{ error: CODE, message }` and
   every new CODE needs an `errors.CODE` text in all three languages.
 - Frontend calls go through `api` in `apps/frontend/src/api.ts` (adds the CSRF header).
+- PDF output goes through `InvoiceRenderer` (`apps/backend/src/pdf/`); build an
+  `InvoiceDocument` with final amounts – renderers never calculate. PDF labels come from the
+  `pdf.*` keys via `translate()` from `@sim/i18n`.
+- "Today" / the current year on the server: use `businessToday()` / `businessYear()`
+  (Europe/Berlin), never `new Date()` directly.
 - Migrations: add a new file in `apps/backend/src/migrations/` and register it in `index.ts`.
   Never edit a released migration.
 - Integration tests use a real MariaDB (`test/helpers/db.ts`), no DB mocks.

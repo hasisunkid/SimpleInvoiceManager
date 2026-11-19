@@ -28,7 +28,7 @@ describe('router guards (mirror of the backend rules)', () => {
 
   it('keeps normal users out of user management (FR-AUTH-02)', async () => {
     const router = await routerWith(() => ({ body: { user: user(), csrfToken: 'x' } }));
-    await router.push('/users/new');
+    await router.push('/settings/users/new');
     expect(router.currentRoute.value.name).toBe('home');
   });
 
@@ -36,7 +36,7 @@ describe('router guards (mirror of the backend rules)', () => {
     const router = await routerWith(() => ({
       body: { user: user({ role: 'ADMIN' }), csrfToken: 'x' },
     }));
-    await router.push('/users/7');
+    await router.push('/settings/users/7');
     expect(router.currentRoute.value.name).toBe('user-edit');
   });
 
