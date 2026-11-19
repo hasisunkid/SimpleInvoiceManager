@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@sim/domain": "0.1.0",
     "@sim/i18n": "0.1.0",
     "vue": "^3.5.22",
     "vue-i18n": "^11.1.12",

@@ -2,6 +2,7 @@ import { mkdir } from 'node:fs/promises';
 import { buildApp } from './app.js';
 import { ConfigError, loadConfig } from './config.js';
 import { createDb, ensureDatabase, migrateLatest } from './db.js';
+import { INITIAL_ADMIN_USERNAME, ensureInitialAdmin } from './users/bootstrap.js';
 
 async function main(): Promise<void> {
   const { config, warnings } = loadConfig();
@@ -22,6 +23,21 @@ async function main(): Promise<void> {
   // AR-03: migrations run automatically at startup.
   const applied = await migrateLatest(db);
   app.log.info({ applied }, applied.length ? 'migrations applied' : 'database schema up to date');
+
+  // FR-AUTH-03: bootstrap the admin account on first start.
+  const bootstrap = await ensureInitialAdmin(db, config.initialAdminPassword);
+  if (bootstrap.created && bootstrap.generatedPassword) {
+    // Printed exactly once, on the start that creates the account (FR-AUTH-03).
+    app.log.warn(
+      `Created user "${INITIAL_ADMIN_USERNAME}" with the generated password ` +
+        `${bootstrap.generatedPassword} – it must be changed at first login.`,
+    );
+  } else if (bootstrap.created) {
+    app.log.info(
+      `Created user "${INITIAL_ADMIN_USERNAME}" with INITIAL_ADMIN_PASSWORD – ` +
+        'it must be changed at first login.',
+    );
+  }
 
   // AR-18: graceful shutdown – stop accepting, finish in-flight requests, close the DB pool.
   let shuttingDown = false;

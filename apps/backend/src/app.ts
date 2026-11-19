@@ -1,11 +1,22 @@
 import { existsSync } from 'node:fs';
-import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
+import Fastify, {
+  type FastifyError,
+  type FastifyInstance,
+  type FastifyServerOptions,
+} from 'fastify';
+import fastifyCookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
 import fastifySwagger from '@fastify/swagger';
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import type { Config } from './config.js';
 import type { Db } from './db.js';
+import { registerAuthGuard } from './auth/guard.js';
+import { createLoginRateLimiter, type LoginRateLimiter } from './auth/rate-limiter.js';
+import { SessionStore } from './auth/sessions.js';
+import { authRoutes } from './routes/auth.js';
 import { healthRoutes } from './routes/health.js';
+import { meRoutes } from './routes/me.js';
+import { userRoutes } from './routes/users.js';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -21,6 +32,8 @@ export interface AppDeps {
   readonly config: Config;
   readonly db: Db;
   readonly logger?: FastifyServerOptions['logger'];
+  /** Injectable for tests; defaults to 5 failures → 1 min lock per username (FR-AUTH-06). */
+  readonly rateLimiter?: LoginRateLimiter;
 }
 
 /** Accepts only a plain absolute path from the ingress header – never a URL. */
@@ -30,25 +43,63 @@ export function sanitizeIngressPath(raw: string | string[] | undefined): string 
   return value.replace(/\/+$/, '');
 }
 
-export async function buildApp({ config, db, logger = false }: AppDeps): Promise<FastifyInstance> {
-  const app = Fastify({ logger, trustProxy: true }).withTypeProvider<TypeBoxTypeProvider>();
+export async function buildApp({
+  config,
+  db,
+  logger = false,
+  rateLimiter = createLoginRateLimiter(),
+}: AppDeps): Promise<FastifyInstance> {
+  const app = Fastify({
+    logger,
+    trustProxy: true,
+    ajv: { customOptions: { removeAdditional: true, coerceTypes: 'array', useDefaults: true } },
+  }).withTypeProvider<TypeBoxTypeProvider>();
 
   app.decorateRequest('basePath', '');
   app.addHook('onRequest', async (request) => {
     request.basePath = sanitizeIngressPath(request.headers['x-ingress-path']);
   });
 
+  // Uniform error body { error, message } (NFR-UX-03: the UI translates the code).
+  app.setErrorHandler<FastifyError>((err, request, reply) => {
+    if (err.validation) {
+      return reply.code(400).send({ error: 'VALIDATION_FAILED', message: err.message });
+    }
+    const status = err.statusCode ?? 500;
+    if (status >= 500) {
+      request.log.error({ err }, 'unhandled error');
+      return reply.code(500).send({ error: 'INTERNAL', message: 'Internal server error' });
+    }
+    return reply.code(status).send({ error: err.code ?? 'BAD_REQUEST', message: err.message });
+  });
+
+  await app.register(fastifyCookie);
   await app.register(fastifySwagger, {
     openapi: {
       openapi: '3.0.3',
       info: { title: 'SimpleInvoice Manager API', version: '0.1.0' },
+      components: {
+        securitySchemes: {
+          session: { type: 'apiKey', in: 'cookie', name: 'sim_session' },
+          csrf: { type: 'apiKey', in: 'header', name: 'X-CSRF-Token' },
+        },
+      },
+      security: [{ session: [], csrf: [] }],
     },
   });
 
+  const sessions = new SessionStore(db, config.sessionSecret);
+
   await app.register(
     async (api) => {
+      registerAuthGuard(api, sessions);
       await api.register(healthRoutes, { db });
-      api.get('/openapi.json', { schema: { hide: true } }, async () => app.swagger());
+      await api.register(authRoutes, { db, sessions, rateLimiter });
+      await api.register(meRoutes, { db, sessions });
+      await api.register(userRoutes, { db, sessions });
+      api.get('/openapi.json', { config: { public: true }, schema: { hide: true } }, async () =>
+        app.swagger(),
+      );
     },
     { prefix: '/api' },
   );

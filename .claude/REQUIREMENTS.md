@@ -29,6 +29,7 @@ The application runs as a **Home Assistant App** (formerly "add-on") and uses th
 | D4 | **Access via Home Assistant Ingress.** The app keeps its **own user management** in addition (no SSO, no federation). |
 | D5 | Full legal compliance (GoBD etc.) is **not** a goal; reasonable, cheap safeguards (immutable finalized invoices, gap-free numbering) **are** required. |
 | D6 | **Logo and invoice style are Admin-only** (resolves the conflict between FR 2.2 and user story #2). |
+| D7 | **Normal users may cancel (storno) invoices** – no admin role required (FR-INV-13). Confirmed 2026-11-19. |
 
 ### 1.3 Out of scope for v1 (roadmap, design must not block these)
 
@@ -355,7 +356,7 @@ Each milestone ends with green tests, an updated README and a short demo note. D
 1. **§ 13b and Abschlagsrechnung** are out of v1 although two of three reference invoices use them. Confirm this is intended – otherwise move to M4/M5.
 2. Should the invoice also be **sendable by e-mail** (SMTP config by admin)? Currently out of scope.
 3. Is a **quote (Angebot)** that converts into an invoice wanted later? It would reuse the same editor.
-4. Should a **normal user** be allowed to cancel (storno) invoices, or only admins? Current assumption: all users.
+4. ~~Should a **normal user** be allowed to cancel (storno) invoices, or only admins?~~ **Resolved → D7:** all users may cancel.
 
 ---
 

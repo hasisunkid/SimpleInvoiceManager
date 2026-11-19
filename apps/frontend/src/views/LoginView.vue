@@ -1,30 +1,49 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { LANGUAGES, type Language } from '@sim/i18n';
-import { apiGet, type Health } from '../api';
-import { rememberLanguage } from '../i18n';
+import type { Language } from '@sim/i18n';
+import { api, type Health } from '../api';
+import LanguageSelect from '../components/LanguageSelect.vue';
+import { applyLanguage, applyUserLanguage, useErrorText } from '../i18n';
+import { login } from '../session';
 
 const { t, locale } = useI18n();
+const errorText = useErrorText();
+const route = useRoute();
+const router = useRouter();
 
 const username = ref('');
 const password = ref('');
 const stayLoggedIn = ref(true);
+const busy = ref(false);
+const error = ref('');
 const serverUnreachable = ref(false);
 
-function changeLanguage(event: Event): void {
-  const language = (event.target as HTMLSelectElement).value as Language;
-  locale.value = language;
-  rememberLanguage(language);
+function changeLanguage(language: Language | null): void {
+  if (language) applyLanguage(locale, language);
 }
 
-function submit(): void {
-  // Authentication is implemented in milestone M1 (FR-AUTH-*).
+async function submit(): Promise<void> {
+  if (!username.value || !password.value) return;
+  busy.value = true;
+  error.value = '';
+  try {
+    const user = await login(username.value, password.value, stayLoggedIn.value);
+    applyUserLanguage(locale, user.uiLanguage);
+    password.value = '';
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/';
+    await router.replace(redirect.startsWith('/') ? redirect : '/');
+  } catch (err) {
+    error.value = errorText(err);
+  } finally {
+    busy.value = false;
+  }
 }
 
 onMounted(async () => {
   try {
-    const health = await apiGet<Health>('health');
+    const health = await api.get<Health>('health');
     serverUnreachable.value = health.status !== 'ok';
   } catch {
     serverUnreachable.value = true;
@@ -45,6 +64,7 @@ onMounted(async () => {
       <p v-if="serverUnreachable" class="alert" role="alert">
         {{ t('status.serverUnreachable') }}
       </p>
+      <p v-if="error" class="alert" role="alert">{{ error }}</p>
 
       <label for="username">{{ t('login.username') }}</label>
       <input
@@ -53,6 +73,7 @@ onMounted(async () => {
         name="username"
         autocomplete="username"
         autocapitalize="none"
+        spellcheck="false"
         required
       />
 
@@ -71,16 +92,18 @@ onMounted(async () => {
         {{ t('login.stayLoggedIn') }}
       </label>
 
-      <button type="submit" class="primary">{{ t('login.submit') }}</button>
+      <button type="submit" class="primary" :disabled="busy">
+        {{ busy ? t('login.submitting') : t('login.submit') }}
+      </button>
     </form>
 
     <footer class="login__footer">
       <label for="language">{{ t('language.label') }}</label>
-      <select id="language" :value="locale" @change="changeLanguage">
-        <option v-for="lang in LANGUAGES" :key="lang" :value="lang">
-          {{ t(`language.${lang}`) }}
-        </option>
-      </select>
+      <LanguageSelect
+        id="language"
+        :model-value="locale as Language"
+        @update:model-value="changeLanguage"
+      />
     </footer>
   </main>
 </template>

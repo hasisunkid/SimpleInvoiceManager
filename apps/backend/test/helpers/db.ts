@@ -1,49 +1,49 @@
-import { MariaDbContainer } from '@testcontainers/mariadb';
+import { inject } from 'vitest';
 import { loadConfig, type Config } from '../../src/config.js';
+import { createDb, ensureDatabase, migrateLatest, type Db } from '../../src/db.js';
 
 /**
- * Integration tests run against a real MariaDB (TR-02).
- *
- * By default a throwaway container is started via Testcontainers. To reuse a running
- * server instead (e.g. the compose DB), set TEST_DB_HOST / TEST_DB_PORT / TEST_DB_USER /
- * TEST_DB_PASSWORD; each test file then uses its own database on that server.
+ * Integration tests run against a real MariaDB (TR-02), started once in global-setup.ts.
+ * Each test file gets its own, freshly created database.
  */
 export interface TestDatabase {
   readonly config: Config;
-  stop(): Promise<void>;
+  readonly db: Db;
+  /** Drops the database and closes the pool. */
+  drop(): Promise<void>;
 }
 
-export async function startTestDatabase(name: string): Promise<TestDatabase> {
-  const base = {
-    DB_NAME: `sim_test_${name}_${process.pid}`,
-    SESSION_SECRET: 'x'.repeat(32),
-    LOG_LEVEL: 'silent',
-  };
+let counter = 0;
 
-  if (process.env.TEST_DB_HOST) {
-    const { config } = loadConfig({
-      ...base,
-      DB_HOST: process.env.TEST_DB_HOST,
-      DB_PORT: process.env.TEST_DB_PORT ?? '3306',
-      DB_USER: process.env.TEST_DB_USER ?? 'root',
-      DB_PASSWORD: process.env.TEST_DB_PASSWORD ?? '',
-    });
-    return { config, stop: async () => {} };
-  }
-
-  // Connect as root: the app needs CREATE DATABASE (AR-12), like the HA MariaDB service user.
-  const container = await new MariaDbContainer('mariadb:11.4').withRootPassword('test').start();
+export function testConfig(name: string): Config {
+  const server = inject('testDbServer');
+  counter += 1;
   const { config } = loadConfig({
-    ...base,
-    DB_HOST: container.getHost(),
-    DB_PORT: String(container.getPort()),
-    DB_USER: 'root',
-    DB_PASSWORD: 'test',
+    DB_HOST: server.host,
+    DB_PORT: String(server.port),
+    DB_USER: server.user,
+    DB_PASSWORD: server.password,
+    DB_NAME: `t_${name}_${process.pid}_${counter}`,
+    SESSION_SECRET: 'test-session-secret-'.padEnd(40, 'x'),
+    LOG_LEVEL: 'silent',
   });
+  return config;
+}
+
+export async function createTestDatabase(
+  name: string,
+  { migrate = true }: { migrate?: boolean } = {},
+): Promise<TestDatabase> {
+  const config = testConfig(name);
+  await ensureDatabase(config);
+  const db = createDb(config);
+  if (migrate) await migrateLatest(db);
   return {
     config,
-    stop: async () => {
-      await container.stop();
+    db,
+    drop: async () => {
+      await db.raw('DROP DATABASE IF EXISTS ??', [config.db.database]).catch(() => {});
+      await db.destroy();
     },
   };
 }

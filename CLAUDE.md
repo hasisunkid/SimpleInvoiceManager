@@ -32,6 +32,10 @@ Before reporting work as done: `npm run lint && npm run typecheck && npm test` m
   `/api/...`) – the app runs under a dynamic Ingress base path.
 - Backend: every route has a TypeBox schema (validation + OpenAPI). Config only via
   `loadConfig()` / env vars.
+- Auth is default-deny (ADR 0005): routes need a session unless `config: { public: true }`;
+  admin-only routes set `config: { admin: true }`. Errors are `{ error: CODE, message }` and
+  every new CODE needs an `errors.CODE` text in all three languages.
+- Frontend calls go through `api` in `apps/frontend/src/api.ts` (adds the CSRF header).
 - Migrations: add a new file in `apps/backend/src/migrations/` and register it in `index.ts`.
   Never edit a released migration.
 - Integration tests use a real MariaDB (`test/helpers/db.ts`), no DB mocks.

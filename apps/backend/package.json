@@ -10,9 +10,11 @@
     "start": "node dist/server.js"
   },
   "dependencies": {
+    "@fastify/cookie": "^11.1.5",
     "@fastify/static": "^10.1.12",
     "@fastify/swagger": "^9.5.2",
     "@fastify/type-provider-typebox": "^5.2.0",
+    "@node-rs/argon2": "^2.2.2",
     "@sim/domain": "0.1.0",
     "@sim/i18n": "0.1.0",
     "@sinclair/typebox": "^0.34.41",

@@ -1,5 +1,6 @@
 import type { Knex } from 'knex';
 import * as m0001 from './0001_app_user.js';
+import * as m0002 from './0002_session.js';
 
 /**
  * Migrations are registered explicitly instead of being discovered on disk, so they work
@@ -14,7 +15,10 @@ interface Migration {
 
 type Entry = readonly [name: string, migration: Migration];
 
-const migrations: readonly Entry[] = [['0001_app_user', m0001]];
+const migrations: readonly Entry[] = [
+  ['0001_app_user', m0001],
+  ['0002_session', m0002],
+];
 
 export const migrationSource: Knex.MigrationSource<Entry> = {
   getMigrations: () => Promise.resolve([...migrations]),

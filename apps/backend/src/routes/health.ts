@@ -16,6 +16,7 @@ export const healthRoutes: FastifyPluginAsyncTypebox<{ db: Db }> = async (app, {
   app.get(
     '/health',
     {
+      config: { public: true },
       schema: {
         summary: 'Health check',
         tags: ['system'],

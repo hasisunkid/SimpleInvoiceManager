@@ -1,26 +1,21 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app.js';
-import { createDb, ensureDatabase, migrateLatest, type Db } from '../src/db.js';
-import { startTestDatabase, type TestDatabase } from './helpers/db.js';
+import { createDb, ensureDatabase, migrateLatest } from '../src/db.js';
+import { createTestDatabase, type TestDatabase } from './helpers/db.js';
 
 describe('GET /api/health (AR-18) against a real MariaDB', () => {
-  let testDb: TestDatabase;
-  let db: Db;
+  let t: TestDatabase;
   let app: FastifyInstance;
 
   beforeAll(async () => {
-    testDb = await startTestDatabase('health');
-    await ensureDatabase(testDb.config);
-    db = createDb(testDb.config);
-    app = await buildApp({ config: testDb.config, db });
+    t = await createTestDatabase('health', { migrate: false });
+    app = await buildApp({ config: t.config, db: t.db });
   });
 
   afterAll(async () => {
     await app?.close();
-    await db?.raw('DROP DATABASE IF EXISTS ??', [testDb.config.db.database]).catch(() => {});
-    await db?.destroy();
-    await testDb?.stop();
+    await t?.drop();
   });
 
   it('reports 503 while migrations are pending', async () => {
@@ -30,8 +25,8 @@ describe('GET /api/health (AR-18) against a real MariaDB', () => {
     expect(res.json().migrations.pending).toBeGreaterThan(0);
   });
 
-  it('reports ok after migrating an empty database', async () => {
-    const applied = await migrateLatest(db);
+  it('reports ok after migrating an empty database (NFR-OPS-01)', async () => {
+    const applied = await migrateLatest(t.db);
     expect(applied.length).toBeGreaterThan(0);
     const res = await app.inject({ method: 'GET', url: '/api/health' });
     expect(res.statusCode).toBe(200);
@@ -43,29 +38,31 @@ describe('GET /api/health (AR-18) against a real MariaDB', () => {
   });
 
   it('migrations are idempotent (NFR-OPS-01)', async () => {
-    expect(await migrateLatest(db)).toEqual([]);
+    expect(await migrateLatest(t.db)).toEqual([]);
   });
 
   it('ensureDatabase is idempotent (AR-12)', async () => {
-    await expect(ensureDatabase(testDb.config)).resolves.toBeUndefined();
+    await expect(ensureDatabase(t.config)).resolves.toBeUndefined();
   });
 
-  it('serves an OpenAPI 3 document (AR-07)', async () => {
+  it('serves an OpenAPI 3 document without login (AR-07)', async () => {
     const res = await app.inject({ method: 'GET', url: '/api/openapi.json' });
     expect(res.statusCode).toBe(200);
     expect(res.json().openapi).toMatch(/^3\./);
-    expect(Object.keys(res.json().paths)).toContain('/api/health');
+    expect(Object.keys(res.json().paths)).toEqual(
+      expect.arrayContaining(['/api/health', '/api/auth/login', '/api/users']),
+    );
   });
 
-  it('answers unknown API routes with a JSON 404', async () => {
+  it('answers unknown routes with a JSON 404', async () => {
     const res = await app.inject({ method: 'GET', url: '/api/does-not-exist' });
     expect(res.statusCode).toBe(404);
     expect(res.json().error).toBe('NOT_FOUND');
   });
 
   it('reports 503 when the database is unreachable', async () => {
-    const broken = createDb({ ...testDb.config, db: { ...testDb.config.db, port: 1 } });
-    const brokenApp = await buildApp({ config: testDb.config, db: broken });
+    const broken = createDb({ ...t.config, db: { ...t.config.db, port: 1 } });
+    const brokenApp = await buildApp({ config: t.config, db: broken });
     try {
       const res = await brokenApp.inject({ method: 'GET', url: '/api/health' });
       expect(res.statusCode).toBe(503);

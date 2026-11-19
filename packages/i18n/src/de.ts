@@ -1,10 +1,27 @@
 /**
  * German is the reference language: every key defined here must exist in pl and en
  * (enforced at compile time via the `Messages` type and at test time, FR-I18N-04 / TR-05).
+ *
+ * vue-i18n syntax: `{name}` is a placeholder. Do not use the characters @ | { } literally.
  */
 export const de = {
   app: {
     name: 'SimpleInvoice Manager',
+  },
+  nav: {
+    home: 'Start',
+    profile: 'Profil',
+    users: 'Benutzer',
+    logout: 'Abmelden',
+    main: 'Hauptmenü',
+  },
+  common: {
+    save: 'Speichern',
+    saving: 'Wird gespeichert …',
+    cancel: 'Abbrechen',
+    back: 'Zurück',
+    loading: 'Wird geladen …',
+    saved: 'Gespeichert.',
   },
   login: {
     title: 'Anmelden',
@@ -12,15 +29,85 @@ export const de = {
     password: 'Passwort',
     stayLoggedIn: 'Angemeldet bleiben',
     submit: 'Anmelden',
+    submitting: 'Anmeldung läuft …',
   },
   language: {
     label: 'Sprache',
+    browser: 'Wie im Browser',
     de: 'Deutsch',
     pl: 'Polski',
     en: 'English',
   },
   status: {
     serverUnreachable: 'Der Server ist nicht erreichbar. Bitte später erneut versuchen.',
+  },
+  errors: {
+    INVALID_CREDENTIALS: 'Benutzername oder Passwort ist falsch.',
+    TOO_MANY_ATTEMPTS: 'Zu viele Fehlversuche. Bitte in {seconds} Sekunden erneut versuchen.',
+    UNAUTHENTICATED: 'Bitte melden Sie sich erneut an.',
+    FORBIDDEN: 'Dafür fehlen Ihnen die Rechte. Bitte wenden Sie sich an den Administrator.',
+    CSRF_FAILED: 'Die Sitzung ist abgelaufen. Bitte laden Sie die Seite neu.',
+    PASSWORD_CHANGE_REQUIRED: 'Bitte ändern Sie zuerst Ihr Passwort.',
+    WRONG_CURRENT_PASSWORD: 'Das aktuelle Passwort ist falsch.',
+    PASSWORD_UNCHANGED: 'Das neue Passwort muss sich vom alten unterscheiden.',
+    USERNAME_TAKEN: 'Dieser Benutzername ist schon vergeben. Bitte einen anderen wählen.',
+    LAST_ADMIN:
+      'Das ist der letzte aktive Administrator. Legen Sie zuerst einen weiteren Administrator an.',
+    USER_NOT_FOUND: 'Dieser Benutzer existiert nicht mehr.',
+    VALIDATION_FAILED: 'Bitte prüfen Sie Ihre Eingaben.',
+    NETWORK: 'Keine Verbindung zum Server. Bitte Internetverbindung prüfen.',
+    UNKNOWN: 'Etwas ist schiefgelaufen. Bitte erneut versuchen.',
+  },
+  password: {
+    changeTitle: 'Passwort ändern',
+    forcedHint: 'Bitte vergeben Sie ein neues Passwort, bevor es weitergeht.',
+    current: 'Aktuelles Passwort',
+    new: 'Neues Passwort',
+    repeat: 'Neues Passwort wiederholen',
+    hint: 'Mindestens {min} Zeichen.',
+    tooShort: 'Das Passwort muss mindestens {min} Zeichen lang sein.',
+    mismatch: 'Die beiden Passwörter stimmen nicht überein.',
+    changed: 'Das Passwort wurde geändert.',
+    submit: 'Passwort ändern',
+  },
+  home: {
+    welcome: 'Hallo {name}!',
+    comingSoon: 'Rechnungen, Kunden und Leistungen kommen mit den nächsten Versionen.',
+  },
+  profile: {
+    title: 'Mein Profil',
+    account: 'Konto',
+    languageSaved: 'Sprache gespeichert.',
+  },
+  roles: {
+    USER: 'Benutzer',
+    ADMIN: 'Administrator',
+  },
+  users: {
+    title: 'Benutzer',
+    new: 'Neuer Benutzer',
+    edit: 'Benutzer bearbeiten',
+    username: 'Benutzername',
+    usernameHint: 'Kleinbuchstaben, Ziffern, Punkt, Binde- oder Unterstrich; 3–32 Zeichen.',
+    displayName: 'Name',
+    role: 'Rolle',
+    language: 'Sprache',
+    status: 'Status',
+    active: 'Aktiv',
+    inactive: 'Deaktiviert',
+    you: 'Sie',
+    mustChange: 'Muss Passwort ändern',
+    initialPassword: 'Start-Passwort',
+    initialPasswordHint: 'Der Benutzer muss es bei der ersten Anmeldung ändern.',
+    create: 'Benutzer anlegen',
+    created: 'Benutzer angelegt.',
+    deactivate: 'Deaktivieren',
+    reactivate: 'Wieder aktivieren',
+    confirmDeactivate: '{name} wirklich deaktivieren? Die Person wird sofort abgemeldet.',
+    resetTitle: 'Passwort zurücksetzen',
+    resetHint: 'Der Benutzer muss das neue Passwort bei der nächsten Anmeldung ändern.',
+    resetSubmit: 'Passwort zurücksetzen',
+    resetDone: 'Passwort zurückgesetzt. Bitte teilen Sie es dem Benutzer mit.',
   },
   pdf: {
     invoice: 'Rechnung',

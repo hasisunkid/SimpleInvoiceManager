@@ -5,7 +5,8 @@ export default defineProject({
     name: 'backend',
     include: ['test/**/*.test.ts'],
     environment: 'node',
-    // Integration tests start a real MariaDB (TR-02); give the container time to boot.
+    // One MariaDB container for all integration tests (TR-02), see test/global-setup.ts.
+    globalSetup: ['test/global-setup.ts'],
     hookTimeout: 180_000,
     testTimeout: 30_000,
   },
