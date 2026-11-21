@@ -11,13 +11,10 @@ arch:
   - aarch64
 # Prebuilt multi-arch images from the release workflow; the Supervisor pulls instead of building.
 image: ghcr.io/hasisunkid/simpleinvoice-manager-{arch}
-startup: application
-boot: auto
-init: true
 
 # AR-13: reached through Home Assistant Ingress (sidebar panel), behind the HA login.
+# Ingress uses the default port 8099; the image's Docker HEALTHCHECK (/api/health) is the watchdog.
 ingress: true
-ingress_port: 8099
 panel_icon: mdi:file-document-edit-outline
 panel_title: Rechnungen
 
@@ -30,8 +27,6 @@ ports_description:
 # AR-12: needs the official MariaDB app; credentials come from the Supervisor services API.
 services:
   - mysql:need
-
-watchdog: http://[HOST]:[PORT:8099]/api/health
 
 options:
   database: simpleinvoice

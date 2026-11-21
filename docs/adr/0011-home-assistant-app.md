@@ -24,8 +24,11 @@
   `/data/files`; the invoice data lives in the MariaDB app – `DOCS.md` says to back up both
   (AR-15).
 - **Ingress** on port 8099 (`ingress: true`, panel "Rechnungen"); the direct port is declared
-  but unmapped by default (AR-14). The watchdog polls `/api/health`.
-- `init: true` (Docker's tini as PID 1) forwards SIGTERM; the app shuts down gracefully.
+  but unmapped by default (AR-14). Health is reported by the image's Docker `HEALTHCHECK`
+  (`/api/health`); the HA `watchdog` option is obsolete.
+- Home Assistant's default `init` (Docker's tini as PID 1) forwards SIGTERM; the app shuts
+  down gracefully. Keys with default values (`startup`, `boot`, `init`, `ingress_port`) are
+  omitted, as the official app linter requires.
 
 ## Verification
 
