@@ -149,6 +149,12 @@ export function createAppRouter(): Router {
         component: () => import('./views/NumberingView.vue'),
         meta: { admin: true, tab: 'more' },
       },
+      {
+        path: '/settings/backup',
+        name: 'backup',
+        component: () => import('./views/BackupView.vue'),
+        meta: { admin: true, tab: 'more' },
+      },
       { path: '/:pathMatch(.*)*', redirect: '/' },
     ],
   });

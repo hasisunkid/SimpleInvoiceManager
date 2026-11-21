@@ -61,3 +61,31 @@ test('wrong password shows a plain-language message', async ({ page }) => {
   await page.getByRole('button', { name: 'Anmelden' }).click();
   await expect(page.getByRole('alert')).toHaveText('Benutzername oder Passwort ist falsch.');
 });
+
+test('admin downloads the data and PDF backups (NFR-DATA-02)', async ({ page }) => {
+  await login(page);
+  await nav(page, 'Mehr');
+  await page.getByRole('link', { name: /Verwaltung/ }).click();
+  await page.getByRole('link', { name: /Datensicherung/ }).click();
+  await expect(page.getByRole('heading', { name: 'Datensicherung' })).toBeVisible();
+
+  const json = page.waitForEvent('download');
+  await page.getByRole('link', { name: 'Daten herunterladen' }).click();
+  const jsonFile = await json;
+  expect(jsonFile.suggestedFilename()).toMatch(/^simpleinvoice-export-\d{4}-\d{2}-\d{2}\.json$/);
+  const content = JSON.parse(
+    await new Promise<string>((resolve) => {
+      let text = '';
+      void jsonFile.createReadStream().then((stream) => {
+        stream.on('data', (chunk) => (text += String(chunk)));
+        stream.on('end', () => resolve(text));
+      });
+    }),
+  );
+  expect(content.format).toBe('simpleinvoice-export');
+  expect(JSON.stringify(content)).not.toContain('password_hash');
+
+  const zip = page.waitForEvent('download');
+  await page.getByRole('link', { name: 'PDFs herunterladen' }).click();
+  expect((await zip).suggestedFilename()).toMatch(/^simpleinvoice-pdfs-\d{4}-\d{2}-\d{2}\.zip$/);
+});

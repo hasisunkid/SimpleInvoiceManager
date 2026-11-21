@@ -11,12 +11,14 @@ import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import type { Config } from './config.js';
 import type { Db } from './db.js';
 import { handleError } from './errors.js';
+import { registerSecurityHeaders } from './security-headers.js';
 import { registerAuthGuard } from './auth/guard.js';
 import { createLoginRateLimiter, type LoginRateLimiter } from './auth/rate-limiter.js';
 import { SessionStore } from './auth/sessions.js';
 import { FileStore } from './files/store.js';
 import { PdfMakeInvoiceRenderer } from './pdf/pdfmake-renderer.js';
 import type { InvoiceRenderer } from './pdf/types.js';
+import { adminRoutes } from './routes/admin.js';
 import { authRoutes } from './routes/auth.js';
 import { catalogRoutes } from './routes/catalog.js';
 import { companyRoutes } from './routes/company.js';
@@ -27,7 +29,18 @@ import { healthRoutes } from './routes/health.js';
 import { meRoutes } from './routes/me.js';
 import { userRoutes } from './routes/users.js';
 
+export interface RouteInfo {
+  method: string;
+  url: string;
+  public: boolean;
+  admin: boolean;
+}
+
 declare module 'fastify' {
+  interface FastifyInstance {
+    /** Every registered route with its access rules – used by the authorization test. */
+    routeTable: RouteInfo[];
+  }
   interface FastifyRequest {
     /**
      * Path under which the browser reaches the app: the Home Assistant ingress path
@@ -67,6 +80,20 @@ export async function buildApp({
     ajv: { customOptions: { removeAdditional: true, coerceTypes: 'array', useDefaults: true } },
   }).withTypeProvider<TypeBoxTypeProvider>();
 
+  registerSecurityHeaders(app);
+  const routeTable: RouteInfo[] = [];
+  app.decorate('routeTable', routeTable);
+  app.addHook('onRoute', (route) => {
+    const config = (route.config ?? {}) as { public?: boolean; admin?: boolean };
+    for (const method of [route.method].flat()) {
+      routeTable.push({
+        method,
+        url: route.url,
+        public: config.public === true,
+        admin: config.admin === true,
+      });
+    }
+  });
   app.decorateRequest('basePath', '');
   app.addHook('onRequest', async (request) => {
     request.basePath = sanitizeIngressPath(request.headers['x-ingress-path']);
@@ -104,6 +131,7 @@ export async function buildApp({
       await api.register(customerRoutes, { db });
       await api.register(catalogRoutes, { db });
       await api.register(invoiceRoutes, { db, files, renderer });
+      await api.register(adminRoutes, { db, files });
       await api.register(settingsRoutes, { db, files, renderer });
       api.get('/openapi.json', { config: { public: true }, schema: { hide: true } }, async () =>
         app.swagger(),

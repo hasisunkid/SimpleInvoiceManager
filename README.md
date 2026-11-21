@@ -4,7 +4,21 @@ Small web app for tradespeople (Handwerker) to write, manage and track invoices 
 smartphone. Runs as a **Home Assistant App** on top of the HA MariaDB app, or standalone with
 Docker Compose. Requirements: [.claude/REQUIREMENTS.md](.claude/REQUIREMENTS.md).
 
-**Status:** milestones **M0–M7** done (see [Milestones](#milestones)).
+**Status:** v0.7 feature-complete – milestones **M0–M8** done (see [Milestones](#milestones)).
+
+## Features
+
+- Users with roles (admin / user), own login, German / Polish / English UI
+- Company details, invoice design (logo, accent colour, live PDF preview), gap-free numbering
+- Customers (business / private) and a catalogue of reusable work and material positions
+- Mobile invoice editor with live totals, auto-save, § 14 UStG completeness check
+- Standard VAT (19 / 7 / 0 %) or Kleinunternehmer (§ 19 UStG); § 35a labour share for private
+  customers; work and material sections
+- Finalize as PDF (DIN 5008 window envelope layout, de / pl / en), stored as the reference copy;
+  share or download on the phone
+- Status tracking (open, overdue, paid, cancelled) with history, dashboard and filtered lists
+- Data backup: all data as JSON, all PDFs as ZIP
+- Runs as a Home Assistant App (Ingress, MariaDB app) or standalone with Docker Compose
 
 ## Quick start (Docker Compose)
 
@@ -51,6 +65,7 @@ npm run dev:frontend
 | `npm run build`         | Compile packages and backend, bundle frontend                     |
 | `npm run format`        | Prettier write                                                    |
 | `npm run test:e2e`      | Playwright E2E on a fresh compose stack (phone, desktop, ingress) |
+| `node scripts/perf.mjs` | Performance measurement against a running stack (NFR-PERF-01)     |
 
 To run integration tests against an already running MariaDB instead of a container:
 `TEST_DB_HOST=127.0.0.1 TEST_DB_USER=root TEST_DB_PASSWORD=root npm test`.
@@ -97,6 +112,17 @@ docs/adr/         Architecture decision records
 - Logs are JSON on stdout; SIGTERM triggers a graceful shutdown.
 
 Design decisions: [docs/adr/](docs/adr/).
+
+## Quality and operations
+
+| Topic                             | Where                                                                                                                                                                                                                                                                                                                           |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tests                             | Unit + integration (Vitest, real MariaDB via Testcontainers, 100 % line coverage of `packages/domain`), E2E (Playwright on iPhone-13 viewport, desktop and an ingress-like base path, incl. axe accessibility checks). CI runs lint, type-check, `npm audit`, all tests, E2E, the HA app linter and the multi-arch image build. |
+| Security                          | [docs/security.md](docs/security.md) – review against NFR-SEC-01; every endpoint's access rule is checked by a test.                                                                                                                                                                                                            |
+| Performance                       | [docs/performance.md](docs/performance.md) – p95 ≤ 22 ms with 5 000 invoices, 3-page PDF < 1 s, 78–129 MiB memory (1 CPU / 512 MB container).                                                                                                                                                                                   |
+| Backups                           | Home Assistant backup of **both** apps (MariaDB + SimpleInvoice Manager); in addition _Mehr → Verwaltung → Datensicherung_ downloads all data (JSON) and all PDFs (ZIP).                                                                                                                                                        |
+| Releases                          | [docs/ha-release.md](docs/ha-release.md) – tag `vX.Y.Z` publishes the HA images; acceptance checklist for HA OS.                                                                                                                                                                                                                |
+| Open points for the product owner | Requirements §10: § 13b reverse charge and partial invoices (v1.1), e-mail sending, quotes.                                                                                                                                                                                                                                     |
 
 ## Milestones
 
@@ -215,3 +241,14 @@ one printed once in the log) and forces a password change at first login. Afterw
 - Simulated locally with MariaDB and a fake Supervisor: the E2E ingress suite passes against the
   HA-mode container, the `homeassistant` database stays untouched, sessions and files survive
   restarts, missing MariaDB / reserved names stop with clear messages.
+
+### M8 demo note
+
+- Every response carries a strict Content Security Policy and other secure headers; a test walks
+  all API routes and proves that only five are public and every admin route refuses normal users.
+- _Mehr → Verwaltung → Datensicherung_ downloads all data as JSON (without password hashes) and
+  all invoice PDFs as ZIP, sorted by year.
+- Migrations are tested from every earlier schema version with data; unused logo uploads are
+  cleaned up automatically; the Node heap is capped for small devices.
+- No WCAG 2.1 A/AA violations on the main screens (axe, phone and desktop); performance measured
+  with 5 000 invoices on a container limited to 1 CPU / 512 MB – see docs/performance.md.

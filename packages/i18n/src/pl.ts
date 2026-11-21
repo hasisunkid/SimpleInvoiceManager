@@ -216,6 +216,8 @@ export const pl: Messages = {
     styleHint: 'Logo i kolor',
     numbering: 'Numery faktur',
     numberingHint: 'Numer początkowy i format',
+    export: 'Kopia zapasowa',
+    exportHint: 'Pobierz wszystkie dane i pliki PDF',
   },
   style: {
     title: 'Wygląd faktury',
@@ -533,5 +535,18 @@ export const pl: Messages = {
     created: 'utworzono',
     dueOn: 'Płatne do {date}',
     paidChanged: 'Zapisano.',
+  },
+  backup: {
+    title: 'Kopia zapasowa',
+    hint: 'Regularnie pobieraj kopię i przechowuj ją poza Home Assistant – faktury trzeba przechowywać przez 10 lat.',
+    dataTitle: 'Wszystkie dane (JSON)',
+    dataHint:
+      'Klienci, faktury, pozycje, usługi, ustawienia i użytkownicy (bez haseł) – do archiwizacji lub przeprowadzki.',
+    dataDownload: 'Pobierz dane',
+    pdfTitle: 'Wszystkie faktury jako PDF (ZIP)',
+    pdfHint: 'Wszystkie wystawione faktury w oryginale, posortowane według lat.',
+    pdfDownload: 'Pobierz pliki PDF',
+    haHint:
+      'Pełna kopia w Home Assistant: utwórz kopię zapasową obu aplikacji – MariaDB i SimpleInvoice Manager.',
   },
 };

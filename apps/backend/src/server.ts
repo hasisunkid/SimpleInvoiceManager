@@ -2,6 +2,7 @@ import { mkdir } from 'node:fs/promises';
 import { buildApp } from './app.js';
 import { ConfigError, loadConfig } from './config.js';
 import { createDb, ensureDatabase, migrateLatest } from './db.js';
+import { FileStore } from './files/store.js';
 import { seedDemoData } from './seed/demo.js';
 import { INITIAL_ADMIN_USERNAME, ensureInitialAdmin } from './users/bootstrap.js';
 
@@ -42,6 +43,10 @@ async function main(): Promise<void> {
 
   // AR-17: optional demo data for local testing – only fills an empty installation.
   if (config.seedDemo && (await seedDemoData(db))) app.log.info('demo data created');
+
+  // Logo uploads that were never saved (M2 note in ADR 0006).
+  const removed = await new FileStore(db, config.dataDir).cleanupUnusedLogos();
+  if (removed > 0) app.log.info({ removed }, 'removed unused logo uploads');
 
   // AR-18: graceful shutdown – stop accepting, finish in-flight requests, close the DB pool.
   let shuttingDown = false;

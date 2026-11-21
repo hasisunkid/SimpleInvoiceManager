@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Knex } from 'knex';
 import type { Db } from '../db.js';
@@ -76,5 +76,27 @@ export class FileStore {
     const sha256 = createHash('sha256').update(data).digest('hex');
     if (sha256 !== row.sha256) throw new Error(`Checksum mismatch for stored file ${row.id}`);
     return data;
+  }
+
+  /**
+   * Removes logo uploads that were never saved as the invoice style (e.g. replaced during the
+   * preview) and are older than `minAgeMs`. Only LOGO files – invoice PDFs are never deleted
+   * (NFR-DATA-01). Content-addressed files are removed only if no other row points to them.
+   */
+  async cleanupUnusedLogos(minAgeMs = 24 * 60 * 60 * 1000): Promise<number> {
+    const cutoff = new Date(Date.now() - minAgeMs);
+    const unused = await this.db<StoredFileRow>('stored_file')
+      .where({ kind: 'LOGO' })
+      .andWhere('created_at', '<', cutoff)
+      .whereNotIn(
+        'id',
+        this.db('invoice_style').whereNotNull('logo_file_id').select('logo_file_id'),
+      );
+    for (const row of unused) {
+      await this.db('stored_file').where({ id: row.id }).delete();
+      const stillUsed = await this.db('stored_file').where({ path: row.path }).first();
+      if (!stillUsed) await rm(path.join(this.dataDir, row.path), { force: true });
+    }
+    return unused.length;
   }
 }

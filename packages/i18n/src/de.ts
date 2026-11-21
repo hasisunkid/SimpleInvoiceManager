@@ -224,6 +224,8 @@ export const de = {
     styleHint: 'Logo und Farbe',
     numbering: 'Rechnungsnummern',
     numberingHint: 'Startnummer und Format',
+    export: 'Datensicherung',
+    exportHint: 'Alle Daten und PDFs herunterladen',
   },
   style: {
     title: 'Rechnungsdesign',
@@ -545,5 +547,18 @@ export const de = {
     created: 'angelegt',
     dueOn: 'Fällig am {date}',
     paidChanged: 'Gespeichert.',
+  },
+  backup: {
+    title: 'Datensicherung',
+    hint: 'Laden Sie regelmäßig eine Kopie herunter und bewahren Sie sie außerhalb von Home Assistant auf – Rechnungen müssen 10 Jahre aufbewahrt werden.',
+    dataTitle: 'Alle Daten (JSON)',
+    dataHint:
+      'Kunden, Rechnungen, Positionen, Leistungen, Einstellungen und Benutzer (ohne Passwörter) – zum Archivieren oder für einen Umzug.',
+    dataDownload: 'Daten herunterladen',
+    pdfTitle: 'Alle Rechnungen als PDF (ZIP)',
+    pdfHint: 'Alle erstellten Rechnungen im Original, nach Jahren sortiert.',
+    pdfDownload: 'PDFs herunterladen',
+    haHint:
+      'Für eine vollständige Sicherung in Home Assistant: ein Backup mit beiden Apps erstellen – MariaDB und SimpleInvoice Manager.',
   },
 } as const;

@@ -25,6 +25,8 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      # NFR-SEC-01: known vulnerabilities in production dependencies fail the build.
+      - run: npm audit --omit=dev --audit-level=high
       # Integration tests start MariaDB via Testcontainers (Docker is available on the runner).
       - run: npm run test:coverage
 

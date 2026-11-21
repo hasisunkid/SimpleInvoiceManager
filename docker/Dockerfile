@@ -22,9 +22,11 @@ RUN npm run build \
 
 # ---------- runtime stage ----------
 FROM node:${NODE_VERSION}-alpine AS runtime
+# NFR-PERF-01: cap the V8 heap so the container stays well below 512 MB on a Raspberry Pi.
 ENV NODE_ENV=production \
     DATA_DIR=/data \
-    PORT=8099
+    PORT=8099 \
+    NODE_OPTIONS=--max-old-space-size=160
 WORKDIR /app
 
 # Production node_modules; workspace packages are symlinked into packages/*.

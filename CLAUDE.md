@@ -36,6 +36,8 @@ Before reporting work as done: `npm run lint && npm run typecheck && npm test` m
 - Auth is default-deny (ADR 0005): routes need a session unless `config: { public: true }`;
   admin-only routes set `config: { admin: true }`. Errors are `{ error: CODE, message }` and
   every new CODE needs an `errors.CODE` text in all three languages.
+- New API routes: `test/security.test.ts` fixes the public routes and admin areas – adding a
+  public or admin route means updating its expected lists on purpose.
 - Frontend calls go through `api` in `apps/frontend/src/api.ts` (adds the CSRF header).
 - PDF output goes through `InvoiceRenderer` (`apps/backend/src/pdf/`); build an
   `InvoiceDocument` with final amounts – renderers never calculate. PDF labels come from the

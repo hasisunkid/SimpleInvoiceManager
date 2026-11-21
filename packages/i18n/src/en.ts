@@ -216,6 +216,8 @@ export const en: Messages = {
     styleHint: 'Logo and colour',
     numbering: 'Invoice numbers',
     numberingHint: 'Start number and format',
+    export: 'Backup',
+    exportHint: 'Download all data and PDFs',
   },
   style: {
     title: 'Invoice design',
@@ -534,5 +536,18 @@ export const en: Messages = {
     created: 'created',
     dueOn: 'Due on {date}',
     paidChanged: 'Saved.',
+  },
+  backup: {
+    title: 'Backup',
+    hint: 'Download a copy regularly and keep it outside Home Assistant – invoices must be kept for 10 years.',
+    dataTitle: 'All data (JSON)',
+    dataHint:
+      'Customers, invoices, positions, services, settings and users (without passwords) – for archiving or moving.',
+    dataDownload: 'Download data',
+    pdfTitle: 'All invoices as PDF (ZIP)',
+    pdfHint: 'Every issued invoice as the original file, sorted by year.',
+    pdfDownload: 'Download PDFs',
+    haHint:
+      'For a complete backup in Home Assistant: create a backup containing both apps – MariaDB and SimpleInvoice Manager.',
   },
 };

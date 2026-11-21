@@ -222,3 +222,30 @@ describe('live preview (FR-STYLE-03, FR-I18N-05)', () => {
     expect(res.statusCode).toBe(403);
   });
 });
+
+describe('cleanup of unused logo uploads', () => {
+  it('removes only old, unreferenced logos and never touches invoice PDFs', async () => {
+    const { FileStore } = await import('../src/files/store.js');
+    const store = new FileStore(ctx.t.db, ctx.t.config.dataDir);
+    const used = (await upload(pngLogo(), 'image/png')).json().fileId;
+    await ctx.admin.put('/api/settings/style', {
+      logoFileId: used,
+      logoPosition: 'LEFT',
+      accentColor: '#3A7CA5',
+    });
+    const svg = (await upload(LOGO_SVG.replace('#3A7CA5', '#123456'), 'image/svg+xml')).json()
+      .fileId;
+    await ctx.t.db('stored_file').update({ created_at: new Date('2020-01-01') });
+
+    const before = await ctx.t.db('stored_file').count({ n: '*' }).first();
+    const removed = await store.cleanupUnusedLogos();
+    expect(removed).toBeGreaterThan(0);
+    const left = await ctx.t.db('stored_file').select('id', 'kind');
+    expect(left.map((r) => r.id)).toContain(used);
+    expect(left.map((r) => r.id)).not.toContain(svg);
+    expect(left.length).toBe(Number(before!.n) - removed);
+    // The referenced logo still loads.
+    expect((await ctx.admin.get(`/api/settings/style/logo/${used}`)).statusCode).toBe(200);
+    expect(await store.cleanupUnusedLogos()).toBe(0);
+  });
+});
