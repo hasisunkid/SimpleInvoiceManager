@@ -155,3 +155,35 @@ export function invoiceFileName(
     .filter(Boolean);
   return `${parts.join('_')}.pdf`;
 }
+
+/**
+ * FR-INV-10/-13/-14 lifecycle:
+ *   DRAFT ─finalize→ OPEN ─pay→ PAID      PAID ─unpay→ OPEN (wrong click)
+ *                     └─cancel→ CANCELLED
+ * Anything else is refused. A paid invoice must be set back to OPEN before it can be cancelled.
+ */
+export const INVOICE_ACTIONS = ['FINALIZE', 'PAY', 'UNPAY', 'CANCEL'] as const;
+export type InvoiceAction = (typeof INVOICE_ACTIONS)[number];
+
+const TRANSITIONS: Readonly<Record<InvoiceAction, { from: InvoiceStatus; to: InvoiceStatus }>> = {
+  FINALIZE: { from: 'DRAFT', to: 'OPEN' },
+  PAY: { from: 'OPEN', to: 'PAID' },
+  UNPAY: { from: 'PAID', to: 'OPEN' },
+  CANCEL: { from: 'OPEN', to: 'CANCELLED' },
+};
+
+/** Target status of an action, or null if the action is not allowed in `from`. */
+export function nextStatus(from: InvoiceStatus, action: InvoiceAction): InvoiceStatus | null {
+  const t = TRANSITIONS[action];
+  return t.from === from ? t.to : null;
+}
+
+/** Actions offered for an invoice in the given status. */
+export function allowedActions(status: InvoiceStatus): InvoiceAction[] {
+  return INVOICE_ACTIONS.filter((action) => TRANSITIONS[action].from === status);
+}
+
+/** A payment date must be a real date between the invoice date and today. */
+export function isValidPaymentDate(paidAt: IsoDate, invoiceDate: IsoDate, today: IsoDate): boolean {
+  return isIsoDate(paidAt) && paidAt >= invoiceDate && paidAt <= today;
+}

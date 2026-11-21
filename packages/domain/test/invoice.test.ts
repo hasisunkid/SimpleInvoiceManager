@@ -168,3 +168,39 @@ describe('PDF file names (FR-PDF-04)', () => {
     ).toBe('Invoice_5_etc-passwd_21.11.2026.pdf');
   });
 });
+
+describe('status lifecycle (FR-INV-10, FR-INV-14)', () => {
+  it('allows exactly the transitions of the diagram', async () => {
+    const { nextStatus, INVOICE_STATUSES, INVOICE_ACTIONS } = await import('../src/index.js');
+    const allowed: string[] = [];
+    for (const from of INVOICE_STATUSES) {
+      for (const action of INVOICE_ACTIONS) {
+        const to = nextStatus(from, action);
+        if (to) allowed.push(`${from} -${action}-> ${to}`);
+      }
+    }
+    expect(allowed).toEqual([
+      'DRAFT -FINALIZE-> OPEN',
+      'OPEN -PAY-> PAID',
+      'OPEN -CANCEL-> CANCELLED',
+      'PAID -UNPAY-> OPEN',
+    ]);
+  });
+
+  it('lists the actions per status', async () => {
+    const { allowedActions } = await import('../src/index.js');
+    expect(allowedActions('DRAFT')).toEqual(['FINALIZE']);
+    expect(allowedActions('OPEN')).toEqual(['PAY', 'CANCEL']);
+    expect(allowedActions('PAID')).toEqual(['UNPAY']);
+    expect(allowedActions('CANCELLED')).toEqual([]);
+  });
+
+  it('checks payment dates', async () => {
+    const { isValidPaymentDate } = await import('../src/index.js');
+    expect(isValidPaymentDate('2024-06-01', '2024-05-22', '2024-06-10')).toBe(true);
+    expect(isValidPaymentDate('2024-05-22', '2024-05-22', '2024-05-22')).toBe(true);
+    expect(isValidPaymentDate('2024-05-21', '2024-05-22', '2024-06-10')).toBe(false);
+    expect(isValidPaymentDate('2024-06-11', '2024-05-22', '2024-06-10')).toBe(false);
+    expect(isValidPaymentDate('2024-02-30', '2024-01-01', '2024-06-10')).toBe(false);
+  });
+});

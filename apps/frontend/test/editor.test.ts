@@ -308,6 +308,6 @@ describe('invoice editor (FR-INV-01..06, NFR-UX-02)', () => {
       'GET api/invoices/1': () => ({ body: invoice({ version: 7 }) }),
     });
     await clickText(wrapper, 'Vorschau (PDF)');
-    await vi.waitFor(() => expect(tab.location.href).toBe('api/invoices/1/preview?v=7'));
+    await vi.waitFor(() => expect(tab.location.href).toMatch(/\/api\/invoices\/1\/preview\?v=7$/));
   });
 });

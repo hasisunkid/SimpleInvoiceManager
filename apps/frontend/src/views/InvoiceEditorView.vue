@@ -7,6 +7,7 @@ import type { Language } from '@sim/i18n';
 import { api, type CatalogItem, type Customer, type Invoice } from '../api';
 import CatalogSheet from '../components/CatalogSheet.vue';
 import InvoicePdfActions from '../components/InvoicePdfActions.vue';
+import InvoiceStatusActions from '../components/InvoiceStatusActions.vue';
 import CustomerPicker from '../components/CustomerPicker.vue';
 import InvoiceTotals from '../components/InvoiceTotals.vue';
 import LanguageSelect from '../components/LanguageSelect.vue';
@@ -160,7 +161,11 @@ function onDrop(index: number): void {
 async function preview(): Promise<void> {
   const tab = window.open('', '_blank');
   await editor.flush();
-  const url = `api/invoices/${props.id}/preview?v=${editor.currentVersion()}`;
+  // Absolute URL (resolved against the ingress base path) for the freshly opened tab.
+  const url = new URL(
+    `api/invoices/${props.id}/preview?v=${editor.currentVersion()}`,
+    document.baseURI,
+  ).href;
   if (tab) tab.location.href = url;
   else window.location.href = url;
 }
@@ -407,6 +412,16 @@ async function reload(): Promise<void> {
 
       <section v-if="readOnly && invoice.number" class="card">
         <InvoicePdfActions :invoice-id="invoice.id" :number="invoice.number" />
+      </section>
+
+      <section v-if="readOnly" class="card">
+        <h2>{{ t('editor.status') }}</h2>
+        <InvoiceStatusActions
+          :invoice="invoice"
+          :version="invoice.version"
+          @changed="(updated) => editor.apply(updated)"
+          @copy="copyInvoice"
+        />
       </section>
 
       <section v-if="!readOnly" class="card">

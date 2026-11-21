@@ -20,13 +20,14 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "test:e2e": "echo \"E2E suite arrives with M6 (TR-06)\"",
+    "test:e2e": "playwright test -c e2e/playwright.config.ts",
     "dev:backend": "npm run dev -w @sim/backend",
     "dev:frontend": "npm run dev -w @sim/frontend",
     "clean": "rm -rf apps/*/dist packages/*/dist **/*.tsbuildinfo"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
+    "@playwright/test": "^1.65.1",
     "@types/node": "^24.0.0",
     "@vitest/coverage-v8": "^3.2.4",
     "eslint": "^9.39.0",

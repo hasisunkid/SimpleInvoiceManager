@@ -210,6 +210,7 @@ export interface Invoice extends Omit<InvoiceDraftData, 'positions'> {
   finalizeProblems: (FinalizeProblem | 'NUMBERING_NOT_CONFIGURED')[];
   overdue: boolean;
   paidAt: string | null;
+  cancelReason: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -230,4 +231,19 @@ export interface InvoicePage {
   items: InvoiceListItem[];
   total: number;
   openTotalCents: number;
+}
+
+export interface InvoiceSummary {
+  drafts: number;
+  open: { count: number; grossCents: number };
+  overdue: { count: number; grossCents: number };
+  paidThisYear: { count: number; grossCents: number };
+}
+
+export interface StatusHistoryEntry {
+  fromStatus: InvoiceStatus | null;
+  toStatus: InvoiceStatus;
+  at: string;
+  userName: string | null;
+  note: string | null;
 }

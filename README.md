@@ -4,7 +4,7 @@ Small web app for tradespeople (Handwerker) to write, manage and track invoices 
 smartphone. Runs as a **Home Assistant App** on top of the HA MariaDB app, or standalone with
 Docker Compose. Requirements: [.claude/REQUIREMENTS.md](.claude/REQUIREMENTS.md).
 
-**Status:** milestones **M0–M5** done (see [Milestones](#milestones)).
+**Status:** milestones **M0–M6** done (see [Milestones](#milestones)).
 
 ## Quick start (Docker Compose)
 
@@ -31,14 +31,15 @@ DB_HOST=127.0.0.1 DB_USER=simpleinvoice DB_PASSWORD=simpleinvoice npm run dev:ba
 npm run dev:frontend
 ```
 
-| Command                 | What it does                                                 |
-| ----------------------- | ------------------------------------------------------------ |
-| `npm test`              | Unit + integration tests (starts MariaDB via Testcontainers) |
-| `npm run test:coverage` | Same, with coverage gate ≥ 90 % for `packages/domain`        |
-| `npm run lint`          | ESLint + Prettier check                                      |
-| `npm run typecheck`     | `tsc -b` + `vue-tsc`                                         |
-| `npm run build`         | Compile packages and backend, bundle frontend                |
-| `npm run format`        | Prettier write                                               |
+| Command                 | What it does                                                      |
+| ----------------------- | ----------------------------------------------------------------- |
+| `npm test`              | Unit + integration tests (starts MariaDB via Testcontainers)      |
+| `npm run test:coverage` | Same, with coverage gate ≥ 90 % for `packages/domain`             |
+| `npm run lint`          | ESLint + Prettier check                                           |
+| `npm run typecheck`     | `tsc -b` + `vue-tsc`                                              |
+| `npm run build`         | Compile packages and backend, bundle frontend                     |
+| `npm run format`        | Prettier write                                                    |
+| `npm run test:e2e`      | Playwright E2E on a fresh compose stack (phone, desktop, ingress) |
 
 To run integration tests against an already running MariaDB instead of a container:
 `TEST_DB_HOST=127.0.0.1 TEST_DB_USER=root TEST_DB_PASSWORD=root npm test`.
@@ -94,8 +95,8 @@ Design decisions: [docs/adr/](docs/adr/).
 | M3  | Customers & catalogue        | ✅ done |
 | M4  | Invoice editor & calculation | ✅ done |
 | M5  | PDF                          | ✅ done |
-| M6  | Lifecycle & overview (+ E2E) | next    |
-| M7  | Home Assistant App           |         |
+| M6  | Lifecycle & overview (+ E2E) | ✅ done |
+| M7  | Home Assistant App           | next    |
 | M8  | Hardening                    |         |
 
 ### M0 demo note
@@ -172,3 +173,18 @@ one printed once in the log) and forces a password change at first login. Afterw
   rate, the § 35a labour share for private customers, the § 19 note for Kleinunternehmer, and
   labels/number formats in the document language (de/pl/en); long invoices continue over several
   pages with repeated table header and "Seite x von y".
+
+### M6 demo note
+
+- **Start** shows tiles for drafts, open (with sum), overdue (red) and paid this year; a tap
+  opens the filtered invoice list.
+- **Rechnungen**: search by number or customer, status filter (incl. overdue), invoice-date
+  range and sorting by date, number or amount; filters stay in the URL.
+- A finalized invoice can be **marked as paid** (payment date, default today), the payment can
+  be **undone**, and an open invoice can be **cancelled** with a reason (by every user) – it
+  keeps its number; "Korrigierte Kopie erstellen" starts the corrected draft. The history shows
+  every status change with user and time.
+- `npm run test:e2e` runs the Playwright suite against a fresh compose stack on an iPhone-13
+  viewport, on desktop and behind an ingress-like base path (15 tests: login, customer, invoice
+  from catalogue, preview, finalize, PDF download, mark paid, quick-create, admin creates user,
+  logo upload).

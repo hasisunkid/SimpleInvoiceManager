@@ -36,7 +36,16 @@ async function signOut(): Promise<void> {
       </button>
     </header>
 
-    <RouterView />
+    <!--
+      Keyed by route name + params: "new customer" → "edit customer" uses the same component
+      and must mount fresh (load the record); query changes (list filters) must not remount.
+    -->
+    <RouterView v-slot="{ Component, route: current }">
+      <component
+        :is="Component"
+        :key="`${String(current.name)}:${JSON.stringify(current.params)}`"
+      />
+    </RouterView>
 
     <!-- FR-INV-22: "New invoice" one tap away on main screens without their own button. -->
     <button

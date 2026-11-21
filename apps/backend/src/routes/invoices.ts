@@ -11,6 +11,7 @@ import {
   calculateInvoice,
   finalizeProblems,
   isIsoDate,
+  isValidPaymentDate,
   isOverdue,
   type InvoiceDraftData,
   type TaxMode,
@@ -21,6 +22,7 @@ import { currentAuth } from '../auth/guard.js';
 import { loadCompany } from '../company/repository.js';
 import type { FileStore } from '../files/store.js';
 import { finalizeInvoice } from '../invoices/finalize.js';
+import { changeStatus, type StatusChangeResult } from '../invoices/status.js';
 import { buildInvoiceDocument, loadPrintStyle } from '../pdf/invoice-document.js';
 import type { InvoiceRenderer } from '../pdf/types.js';
 import { findCustomer, type Customer } from '../customers/repository.js';
@@ -28,7 +30,9 @@ import {
   createDraft,
   deleteDraft,
   findInvoice,
+  invoiceSummary,
   listInvoices,
+  statusHistory,
   saveDraft,
   type StoredInvoice,
 } from '../invoices/repository.js';
@@ -118,6 +122,7 @@ const InvoiceDetail = Type.Object({
   finalizeProblems: Type.Array(Type.String()),
   overdue: Type.Boolean(),
   paidAt: Type.Union([Type.String(), Type.Null()]),
+  cancelReason: Type.Union([Type.String(), Type.Null()]),
   createdAt: Type.String({ format: 'date-time' }),
   updatedAt: Type.String({ format: 'date-time' }),
 });
@@ -196,11 +201,18 @@ export const invoiceRoutes: FastifyPluginAsyncTypebox<InvoiceRoutesOptions> = as
     '/invoices',
     {
       schema: {
-        summary: 'List invoices (newest first)',
+        summary: 'List invoices with filters, search and sorting (FR-INV-21)',
         tags: ['invoices'],
         querystring: Type.Object({
-          status: Type.Optional(StatusSchema),
+          status: Type.Optional(Type.Union([StatusSchema, Type.Literal('OVERDUE')])),
           customerId: Type.Optional(Type.Integer({ minimum: 1 })),
+          from: Type.Optional(DateSchema),
+          to: Type.Optional(DateSchema),
+          q: Type.Optional(Type.String({ maxLength: 100 })),
+          sort: Type.Optional(
+            Type.Union([Type.Literal('date'), Type.Literal('number'), Type.Literal('amount')]),
+          ),
+          order: Type.Optional(Type.Union([Type.Literal('asc'), Type.Literal('desc')])),
           limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 200, default: 50 })),
           offset: Type.Optional(Type.Integer({ minimum: 0, default: 0 })),
         }),
@@ -216,18 +228,191 @@ export const invoiceRoutes: FastifyPluginAsyncTypebox<InvoiceRoutesOptions> = as
       },
     },
     async (request) => {
-      const { status, customerId, limit = 50, offset = 0 } = request.query;
+      const { limit = 50, offset = 0, ...filters } = request.query;
+      const today = businessToday();
       const result = await listInvoices(db, {
+        today,
         limit,
         offset,
-        ...(status ? { status } : {}),
-        ...(customerId ? { customerId } : {}),
+        ...Object.fromEntries(
+          Object.entries(filters).filter(([, v]) => v !== undefined && v !== ''),
+        ),
       });
-      const today = businessToday();
       return {
         ...result,
         items: result.items.map((i) => ({ ...i, overdue: isOverdue(i.status, i.dueDate, today) })),
       };
+    },
+  );
+
+  app.get(
+    '/invoices/summary',
+    {
+      schema: {
+        summary: 'Dashboard counters: drafts, open, overdue, paid this year (FR-INV-20)',
+        tags: ['invoices'],
+        response: {
+          200: Type.Object({
+            drafts: Type.Integer(),
+            open: Type.Object({ count: Type.Integer(), grossCents: Type.Integer() }),
+            overdue: Type.Object({ count: Type.Integer(), grossCents: Type.Integer() }),
+            paidThisYear: Type.Object({ count: Type.Integer(), grossCents: Type.Integer() }),
+          }),
+          ...errorResponses(401, 403),
+        },
+      },
+    },
+    async () => invoiceSummary(db, businessToday()),
+  );
+
+  app.get(
+    '/invoices/:id/history',
+    {
+      schema: {
+        summary: 'Status changes with user and time (FR-INV-14)',
+        tags: ['invoices'],
+        params: IdParamsSchema,
+        response: {
+          200: Type.Array(
+            Type.Object({
+              fromStatus: Type.Union([StatusSchema, Type.Null()]),
+              toStatus: StatusSchema,
+              at: Type.String({ format: 'date-time' }),
+              userName: Type.Union([Type.String(), Type.Null()]),
+              note: Type.Union([Type.String(), Type.Null()]),
+            }),
+          ),
+          ...errorResponses(401, 403, 404),
+        },
+      },
+    },
+    async (request, reply) => {
+      if (!(await findInvoice(db, request.params.id))) return reply.code(404).send(notFound);
+      return statusHistory(db, request.params.id);
+    },
+  );
+
+  /** Shared answer for pay / unpay / cancel. */
+  async function statusReply(
+    id: number,
+    outcome: StatusChangeResult,
+    reply: FastifyReply,
+  ): Promise<FastifyReply | Awaited<ReturnType<typeof detail>>> {
+    switch (outcome.result) {
+      case 'not-found':
+        return reply.code(404).send(notFound);
+      case 'conflict':
+        return reply.code(409).send({
+          error: 'INVOICE_CHANGED',
+          message: 'The invoice was changed elsewhere; reload it',
+        });
+      case 'not-allowed':
+        return reply.code(409).send({
+          error: 'INVALID_STATUS_CHANGE',
+          message: `Not possible for an invoice with status ${outcome.status}`,
+        });
+      case 'changed':
+        return detail((await findInvoice(db, id))!);
+    }
+  }
+
+  app.post(
+    '/invoices/:id/pay',
+    {
+      schema: {
+        summary: 'Mark as paid (FR-INV-14); payment date defaults to today',
+        tags: ['invoices'],
+        params: IdParamsSchema,
+        body: Type.Object({
+          version: Type.Integer({ minimum: 1 }),
+          paidAt: Type.Optional(DateSchema),
+        }),
+        response: { 200: InvoiceDetail, ...errorResponses(400, 401, 403, 404, 409) },
+      },
+    },
+    async (request, reply) => {
+      const { id } = request.params;
+      const today = businessToday();
+      const paidAt = request.body.paidAt ?? today;
+      const invoice = await findInvoice(db, id);
+      if (!invoice) return reply.code(404).send(notFound);
+      if (!isValidPaymentDate(paidAt, invoice.invoiceDate, today)) {
+        return reply.code(400).send({
+          error: 'INVALID_PAYMENT_DATE',
+          message: 'The payment date must lie between invoice date and today',
+        });
+      }
+      const outcome = await changeStatus(
+        db,
+        id,
+        'PAY',
+        request.body.version,
+        currentAuth(request).user.id,
+        {
+          paidAt,
+        },
+      );
+      return statusReply(id, outcome, reply);
+    },
+  );
+
+  app.post(
+    '/invoices/:id/unpay',
+    {
+      schema: {
+        summary: 'Undo "paid" (wrong click) – back to OPEN (FR-INV-14)',
+        tags: ['invoices'],
+        params: IdParamsSchema,
+        body: Type.Object({ version: Type.Integer({ minimum: 1 }) }),
+        response: { 200: InvoiceDetail, ...errorResponses(400, 401, 403, 404, 409) },
+      },
+    },
+    async (request, reply) => {
+      const { id } = request.params;
+      const outcome = await changeStatus(
+        db,
+        id,
+        'UNPAY',
+        request.body.version,
+        currentAuth(request).user.id,
+      );
+      return statusReply(id, outcome, reply);
+    },
+  );
+
+  app.post(
+    '/invoices/:id/cancel',
+    {
+      schema: {
+        summary: 'Cancel an open invoice; a reason is required (FR-INV-13, decision D7)',
+        tags: ['invoices'],
+        params: IdParamsSchema,
+        body: Type.Object({
+          version: Type.Integer({ minimum: 1 }),
+          reason: Type.String({ minLength: 1, maxLength: 1000 }),
+        }),
+        response: { 200: InvoiceDetail, ...errorResponses(400, 401, 403, 404, 409) },
+      },
+    },
+    async (request, reply) => {
+      const { id } = request.params;
+      const reason = request.body.reason.trim();
+      if (!reason) {
+        return reply
+          .code(400)
+          .send({ error: 'CANCEL_REASON_REQUIRED', message: 'Please give a reason' });
+      }
+      const outcome = await changeStatus(
+        db,
+        id,
+        'CANCEL',
+        request.body.version,
+        currentAuth(request).user.id,
+        {
+          reason,
+        },
+      );
+      return statusReply(id, outcome, reply);
     },
   );
 

@@ -17,6 +17,7 @@ SimpleInvoice Manager – invoice web app for tradespeople, packaged as a Home A
 - `npm run test:coverage` – plus coverage gate (≥ 90 % for packages/domain)
 - `npm run lint` / `npm run format` – ESLint + Prettier
 - `npm run typecheck` – tsc -b + vue-tsc
+- `npm run test:e2e` – Playwright E2E on a fresh, separate compose stack (needs Docker; ~1–2 min)
 - `docker compose up --build --wait` – full system on http://localhost:8099
 
 Before reporting work as done: `npm run lint && npm run typecheck && npm test` must pass.

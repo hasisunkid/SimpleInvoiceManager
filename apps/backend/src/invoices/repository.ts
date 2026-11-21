@@ -16,6 +16,7 @@ import {
 } from '@sim/domain';
 import type { Language } from '@sim/i18n';
 import { transactionWithRetry, type Db } from '../db.js';
+import { likePattern, searchTerms } from '../customers/repository.js';
 
 type Executor = Db | Knex.Transaction;
 
@@ -43,6 +44,7 @@ interface InvoiceRow {
   buyer_snapshot: string | object | null;
   pdf_file_id: number | null;
   paid_at: string | null;
+  cancel_reason: string | null;
   version: number;
   created_at: Date;
   updated_at: Date;
@@ -74,6 +76,7 @@ export interface StoredInvoice extends Omit<InvoiceDraftData, 'positions'> {
   taxMode: TaxMode;
   dueDate: string;
   paidAt: string | null;
+  cancelReason: string | null;
   version: number;
   /** Frozen on finalize (FR-COMP-05); null for drafts. */
   sellerSnapshot: SellerSnapshot | null;
@@ -118,6 +121,7 @@ function toInvoice(row: InvoiceRow, positions: PositionRow[]): StoredInvoice {
     closingText: row.closing_text,
     taxMode: row.tax_mode,
     paidAt: row.paid_at,
+    cancelReason: row.cancel_reason,
     version: row.version,
     sellerSnapshot: parseJson(row.seller_snapshot as string | SellerSnapshot | null),
     buyerSnapshot: parseJson(row.buyer_snapshot as string | BuyerSnapshot | null),
@@ -303,29 +307,77 @@ export interface InvoiceListItem {
   grossCents: number;
 }
 
+export type ListStatusFilter = InvoiceStatus | 'OVERDUE';
+export type ListSort = 'date' | 'number' | 'amount';
+
 export interface InvoiceListQuery {
-  status?: InvoiceStatus;
+  status?: ListStatusFilter;
   customerId?: number;
+  /** Invoice date range (inclusive). */
+  from?: string;
+  to?: string;
+  /** Search by invoice number or customer name. */
+  q?: string;
+  sort?: ListSort;
+  order?: 'asc' | 'desc';
+  /** "Today" for the overdue filter (Europe/Berlin, FR-INV-10). */
+  today: string;
   limit: number;
   offset: number;
 }
 
 /**
- * Invoice list (basic version; filters, search and sorting are extended in M6). The customer
- * name comes from the frozen buyer snapshot for finalized invoices, otherwise from the customer.
+ * Customer name: frozen snapshot for finalized invoices, otherwise the current customer.
+ * JSON_VALUE returns a binary collation – searches add COLLATE for case/accent-insensitivity.
+ */
+const NAME_SQL =
+  "COALESCE(JSON_VALUE(i.buyer_snapshot, '$.name'), NULLIF(c.company_name, ''), c.contact_person, '')";
+
+/**
+ * FR-INV-21: invoice list with status (incl. derived "overdue"), customer, date-range filters,
+ * search by number or customer name and sorting by date, number or amount.
  */
 export async function listInvoices(
   db: Db,
-  { status, customerId, limit, offset }: InvoiceListQuery,
+  query: InvoiceListQuery,
 ): Promise<{ items: InvoiceListItem[]; total: number; openTotalCents: number }> {
+  const {
+    status,
+    customerId,
+    from,
+    to,
+    q,
+    sort = 'date',
+    order = 'desc',
+    today,
+    limit,
+    offset,
+  } = query;
   const base = db('invoice as i')
     .leftJoin('customer as c', 'c.id', 'i.customer_id')
-    .modify((q) => {
-      if (status) q.where('i.status', status);
-      if (customerId) q.where('i.customer_id', customerId);
+    .modify((b) => {
+      if (status === 'OVERDUE') b.where('i.status', 'OPEN').andWhere('i.due_date', '<', today);
+      else if (status) b.where('i.status', status);
+      if (customerId) b.where('i.customer_id', customerId);
+      if (from) b.where('i.invoice_date', '>=', from);
+      if (to) b.where('i.invoice_date', '<=', to);
+      for (const term of searchTerms(q)) {
+        const pattern = likePattern(term);
+        b.where((w) =>
+          w
+            .where('i.number', 'like', pattern)
+            .orWhereRaw(`(${NAME_SQL}) COLLATE utf8mb4_unicode_ci LIKE ?`, [pattern]),
+        );
+      }
     });
-  const nameSql =
-    "COALESCE(JSON_VALUE(i.buyer_snapshot, '$.name'), NULLIF(c.company_name, ''), c.contact_person, '')";
+  const direction = order === 'asc' ? 'ASC' : 'DESC';
+  const orderSql = {
+    date: `i.invoice_date ${direction}, i.id ${direction}`,
+    // Drafts (no number) last; then by length so "99" sorts before "100".
+    number: `i.number IS NULL, CHAR_LENGTH(i.number) ${direction}, i.number ${direction}, i.id ${direction}`,
+    amount: `i.gross_total_cents ${direction}, i.id ${direction}`,
+  }[sort];
+
   const [rows, countRow, openRow] = await Promise.all([
     base
       .clone()
@@ -337,12 +389,9 @@ export async function listInvoices(
         'i.invoice_date',
         'i.due_date',
         'i.gross_total_cents',
-        db.raw(`${nameSql} as customer_name`),
+        db.raw(`${NAME_SQL} as customer_name`),
       )
-      .orderBy([
-        { column: 'i.invoice_date', order: 'desc' },
-        { column: 'i.id', order: 'desc' },
-      ])
+      .orderByRaw(orderSql)
       .limit(limit)
       .offset(offset),
     base.clone().count<{ n: number | string }[]>({ n: '*' }).first(),
@@ -366,4 +415,64 @@ export async function listInvoices(
     total: Number(countRow?.n ?? 0),
     openTotalCents: Number(openRow?.s ?? 0),
   };
+}
+
+export interface InvoiceSummary {
+  drafts: number;
+  open: { count: number; grossCents: number };
+  overdue: { count: number; grossCents: number };
+  paidThisYear: { count: number; grossCents: number };
+}
+
+/** FR-INV-20: dashboard counters in one query. */
+export async function invoiceSummary(db: Db, today: string): Promise<InvoiceSummary> {
+  const yearStart = `${today.slice(0, 4)}-01-01`;
+  const row = (await db('invoice')
+    .select(
+      db.raw("COALESCE(SUM(status = 'DRAFT'), 0) AS drafts"),
+      db.raw("COALESCE(SUM(status = 'OPEN'), 0) AS open_count"),
+      db.raw("COALESCE(SUM(CASE WHEN status = 'OPEN' THEN gross_total_cents END), 0) AS open_sum"),
+      db.raw("COALESCE(SUM(status = 'OPEN' AND due_date < ?), 0) AS overdue_count", [today]),
+      db.raw(
+        "COALESCE(SUM(CASE WHEN status = 'OPEN' AND due_date < ? THEN gross_total_cents END), 0) AS overdue_sum",
+        [today],
+      ),
+      db.raw("COALESCE(SUM(status = 'PAID' AND paid_at >= ?), 0) AS paid_count", [yearStart]),
+      db.raw(
+        "COALESCE(SUM(CASE WHEN status = 'PAID' AND paid_at >= ? THEN gross_total_cents END), 0) AS paid_sum",
+        [yearStart],
+      ),
+    )
+    .first()) as Record<string, number | string>;
+  const n = (key: string) => Number(row[key] ?? 0);
+  return {
+    drafts: n('drafts'),
+    open: { count: n('open_count'), grossCents: n('open_sum') },
+    overdue: { count: n('overdue_count'), grossCents: n('overdue_sum') },
+    paidThisYear: { count: n('paid_count'), grossCents: n('paid_sum') },
+  };
+}
+
+export interface StatusHistoryEntry {
+  fromStatus: InvoiceStatus | null;
+  toStatus: InvoiceStatus;
+  at: string;
+  userName: string | null;
+  note: string | null;
+}
+
+/** FR-INV-14: every status change with user and time. */
+export async function statusHistory(db: Db, invoiceId: number): Promise<StatusHistoryEntry[]> {
+  const rows = await db('invoice_status_history as h')
+    .leftJoin('app_user as u', 'u.id', 'h.user_id')
+    .where('h.invoice_id', invoiceId)
+    .orderBy('h.id')
+    .select('h.from_status', 'h.to_status', 'h.at', 'h.note', 'u.display_name');
+  return rows.map((r: Record<string, unknown>) => ({
+    fromStatus: (r.from_status as InvoiceStatus | null) ?? null,
+    toStatus: r.to_status as InvoiceStatus,
+    at: (r.at as Date).toISOString(),
+    userName: (r.display_name as string | null) ?? null,
+    note: (r.note as string | null) ?? null,
+  }));
 }
