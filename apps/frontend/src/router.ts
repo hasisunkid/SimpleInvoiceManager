@@ -8,7 +8,9 @@ declare module 'vue-router' {
     /** Requires the ADMIN role (FR-AUTH-02). */
     admin?: boolean;
     /** Bottom-bar tab that is highlighted for this screen. */
-    tab?: 'home' | 'customers' | 'catalog' | 'more';
+    tab?: 'home' | 'invoices' | 'customers' | 'catalog' | 'more';
+    /** Show the floating "New invoice" button (FR-INV-22). */
+    fab?: boolean;
   }
 }
 
@@ -37,12 +39,26 @@ export function createAppRouter(): Router {
         name: 'change-password',
         component: () => import('./views/ChangePasswordView.vue'),
       },
+      // ----- invoices (FR-INV-*) -----
+      {
+        path: '/invoices',
+        name: 'invoices',
+        component: () => import('./views/InvoicesView.vue'),
+        meta: { tab: 'invoices' },
+      },
+      {
+        path: '/invoices/:id(\\d+)',
+        name: 'invoice-edit',
+        component: () => import('./views/InvoiceEditorView.vue'),
+        props: (route) => ({ id: Number(route.params.id) }),
+        meta: { tab: 'invoices' },
+      },
       // ----- customers (FR-CUST-*) -----
       {
         path: '/customers',
         name: 'customers',
         component: () => import('./views/CustomersView.vue'),
-        meta: { tab: 'customers' },
+        meta: { tab: 'customers', fab: true },
       },
       {
         path: '/customers/new',
@@ -62,7 +78,7 @@ export function createAppRouter(): Router {
         path: '/catalog',
         name: 'catalog',
         component: () => import('./views/CatalogView.vue'),
-        meta: { tab: 'catalog' },
+        meta: { tab: 'catalog', fab: true },
       },
       {
         path: '/catalog/new',
@@ -82,7 +98,7 @@ export function createAppRouter(): Router {
         path: '/more',
         name: 'more',
         component: () => import('./views/MoreView.vue'),
-        meta: { tab: 'more' },
+        meta: { tab: 'more', fab: true },
       },
       {
         path: '/profile',

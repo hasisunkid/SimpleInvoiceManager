@@ -21,6 +21,7 @@ import { authRoutes } from './routes/auth.js';
 import { catalogRoutes } from './routes/catalog.js';
 import { companyRoutes } from './routes/company.js';
 import { customerRoutes } from './routes/customers.js';
+import { invoiceRoutes } from './routes/invoices.js';
 import { settingsRoutes } from './routes/settings.js';
 import { healthRoutes } from './routes/health.js';
 import { meRoutes } from './routes/me.js';
@@ -102,6 +103,7 @@ export async function buildApp({
       await api.register(companyRoutes, { db });
       await api.register(customerRoutes, { db });
       await api.register(catalogRoutes, { db });
+      await api.register(invoiceRoutes, { db });
       await api.register(settingsRoutes, { db, files, renderer });
       api.get('/openapi.json', { config: { public: true }, schema: { hide: true } }, async () =>
         app.swagger(),

@@ -4,7 +4,7 @@ Small web app for tradespeople (Handwerker) to write, manage and track invoices 
 smartphone. Runs as a **Home Assistant App** on top of the HA MariaDB app, or standalone with
 Docker Compose. Requirements: [.claude/REQUIREMENTS.md](.claude/REQUIREMENTS.md).
 
-**Status:** milestones **M0–M3** done (see [Milestones](#milestones)).
+**Status:** milestones **M0–M4** done (see [Milestones](#milestones)).
 
 ## Quick start (Docker Compose)
 
@@ -65,7 +65,7 @@ The app is configured **only** through environment variables. In Home Assistant 
 ```
 apps/backend      Fastify 5 API, Knex migrations, PDF renderer (pdfmake) – serves the built SPA
 apps/frontend     Vue 3 + Vite SPA, mobile-first, hash routing, relative URLs (Ingress)
-packages/domain   Pure TypeScript: money (integer cents), dates, IBAN/tax IDs, numbering, later calculation
+packages/domain   Pure TypeScript: invoice calculation, money (integer cents), dates, IBAN/tax IDs, numbering
 packages/i18n     de / pl / en translations for UI and PDF (German = reference shape)
 docker/           Multi-stage Dockerfile (amd64 + arm64)
 docs/adr/         Architecture decision records
@@ -92,8 +92,8 @@ Design decisions: [docs/adr/](docs/adr/).
 | M1  | Auth & users                 | ✅ done |
 | M2  | Company, style, numbering    | ✅ done |
 | M3  | Customers & catalogue        | ✅ done |
-| M4  | Invoice editor & calculation | next    |
-| M5  | PDF                          |         |
+| M4  | Invoice editor & calculation | ✅ done |
+| M5  | PDF                          | next    |
 | M6  | Lifecycle & overview (+ E2E) |         |
 | M7  | Home Assistant App           |         |
 | M8  | Hardening                    |         |
@@ -143,3 +143,18 @@ one printed once in the log) and forces a password change at first login. Afterw
 - The customer picker with quick create (name + address) is ready for the invoice editor (M4).
 - `docker compose up` with `SEED_DEMO=true` adds three demo customers and five catalogue items
   to an empty installation.
+
+### M4 demo note
+
+- **Neue Rechnung** (start page, invoice list, customer page, floating button elsewhere) creates
+  a draft with today's date, the default payment term and the customer's invoice language.
+- Editor: pick or quick-create the customer, add positions from the catalogue (one tap) or as
+  free lump-sum lines, edit description, quantity (3 decimals), unit, price and VAT, reorder
+  (↑/↓ on phones, drag & drop on desktop), duplicate, delete, "save as template".
+- Totals update instantly: work/material subtotals, VAT per rate, gross and – for private
+  customers – the labour share incl. VAT for § 35a EStG; § 19 mode shows no VAT.
+- Drafts save themselves (also when the phone locks); a change from another device is detected
+  instead of being overwritten. A checklist shows what § 14 UStG still needs.
+- Copy any invoice into a new draft; delete drafts. The customer page lists the customer's
+  invoices with the open total; customers with invoices can no longer be deleted.
+- Creating, finalizing as PDF and the status lifecycle follow in M5/M6.

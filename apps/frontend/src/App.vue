@@ -2,14 +2,17 @@
 import { computed } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
+import { useNewInvoice } from './composables/useNewInvoice';
 import { logout, session } from './session';
 
 const { t } = useI18n();
 const router = useRouter();
 const route = useRoute();
+const newInvoice = useNewInvoice();
 
 const tabs = [
   { name: 'home', label: 'nav.home' },
+  { name: 'invoices', label: 'nav.invoices' },
   { name: 'customers', label: 'nav.customers' },
   { name: 'catalog', label: 'nav.catalog' },
   { name: 'more', label: 'nav.more' },
@@ -34,6 +37,17 @@ async function signOut(): Promise<void> {
     </header>
 
     <RouterView />
+
+    <!-- FR-INV-22: "New invoice" one tap away on main screens without their own button. -->
+    <button
+      v-if="showNav && route.meta.fab"
+      type="button"
+      class="fab"
+      :disabled="newInvoice.creating.value"
+      @click="newInvoice.create()"
+    >
+      {{ t('invoices.new') }}
+    </button>
 
     <nav v-if="showNav" class="tabbar" :aria-label="t('nav.main')">
       <RouterLink

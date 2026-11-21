@@ -1,4 +1,14 @@
-import type { CatalogItemData, CustomerData } from '@sim/domain';
+import type {
+  CatalogItemData,
+  CustomerData,
+  FinalizeProblem,
+  InvoiceDraftData,
+  InvoicePositionData,
+  InvoiceStatus,
+  InvoiceTotals,
+  TaxMode,
+  VatCategory,
+} from '@sim/domain';
 import type { Language } from '@sim/i18n';
 
 /**
@@ -67,6 +77,8 @@ interface RequestOptions {
   raw?: Blob;
   /** Parse the response as JSON (default) or return it as a Blob (PDFs, images). */
   as?: 'json' | 'blob';
+  /** Let the request finish even if the page is being closed (auto-save on phone lock). */
+  keepalive?: boolean;
 }
 
 async function send(method: Method, path: string, options: RequestOptions): Promise<Response> {
@@ -88,6 +100,7 @@ async function send(method: Method, path: string, options: RequestOptions): Prom
       method,
       headers,
       credentials: 'same-origin',
+      ...(options.keepalive ? { keepalive: true } : {}),
       ...(body !== undefined ? { body } : {}),
     });
   } catch {
@@ -124,7 +137,8 @@ async function request<T>(method: Method, path: string, options: RequestOptions 
 export const api = {
   get: <T>(path: string) => request<T>('GET', path),
   post: <T>(path: string, body: unknown = {}) => request<T>('POST', path, { json: body }),
-  put: <T>(path: string, body: unknown) => request<T>('PUT', path, { json: body }),
+  put: <T>(path: string, body: unknown, { keepalive = false } = {}) =>
+    request<T>('PUT', path, { json: body, keepalive }),
   patch: <T>(path: string, body: unknown) => request<T>('PATCH', path, { json: body }),
   delete: (path: string) => request<void>('DELETE', path),
   /** Uploads a file as the raw request body (logo upload). */
@@ -151,4 +165,45 @@ export interface CatalogItem extends CatalogItemData {
   id: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface InvoicePosition extends InvoicePositionData {
+  lineTotalCents: number;
+  vatCategory: VatCategory;
+}
+
+/** Editor view of an invoice (GET /api/invoices/:id). */
+export interface Invoice extends Omit<InvoiceDraftData, 'positions'> {
+  id: number;
+  number: string | null;
+  status: InvoiceStatus;
+  version: number;
+  customer: Customer | null;
+  dueDate: string;
+  taxMode: TaxMode;
+  positions: InvoicePosition[];
+  totals: InvoiceTotals;
+  finalizeProblems: (FinalizeProblem | 'NUMBERING_NOT_CONFIGURED')[];
+  overdue: boolean;
+  paidAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InvoiceListItem {
+  id: number;
+  number: string | null;
+  status: InvoiceStatus;
+  customerId: number | null;
+  customerName: string;
+  invoiceDate: string;
+  dueDate: string;
+  grossCents: number;
+  overdue: boolean;
+}
+
+export interface InvoicePage {
+  items: InvoiceListItem[];
+  total: number;
+  openTotalCents: number;
 }

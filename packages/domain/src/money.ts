@@ -95,3 +95,14 @@ export function formatQuantity(milli: number, language: DocumentLanguage): strin
   const text = frac ? `${whole}${language === 'en' ? '.' : ','}${frac}` : whole;
   return negative ? `-${text}` : text;
 }
+
+/**
+ * Parses a quantity with up to three decimals ("1", "1,5", "2.25", "0,125") into thousandths.
+ * Both "," and "." are decimal separators; thousands separators are not accepted, so
+ * "1,250" is 1.25 – never 1250. Returns null if unparseable.
+ */
+export function parseQuantity(input: string): number | null {
+  const m = /^(\d{1,9})(?:[.,](\d{1,3}))?$/.exec(input.replace(/\s+/g, ''));
+  if (!m) return null;
+  return Number(m[1]) * 1000 + Number((m[2] ?? '').padEnd(3, '0'));
+}

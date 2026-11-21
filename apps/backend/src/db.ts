@@ -17,6 +17,12 @@ function connection(config: Config, withDatabase: boolean): Knex.MySql2Connectio
     // DECIMAL columns come back as strings – money uses integer cents anyway (AR-08).
     decimalNumbers: false,
     supportBigNumbers: true,
+    // Calendar dates (invoice date, due date …) stay 'YYYY-MM-DD' strings – no time-zone shifts.
+    typeCast(field: { type: string; string(): string | null }, next: () => unknown) {
+      return field.type === 'DATE' ? field.string() : next();
+    },
+    // BIGINT money columns as JS numbers: cents stay far below 2^53.
+    bigNumberStrings: false,
   };
 }
 
