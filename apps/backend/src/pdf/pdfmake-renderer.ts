@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module';
 import type * as PdfMake from 'pdfmake';
 import type { Content, TableCell } from 'pdfmake';
-import { formatDate, formatMoney, formatQuantity, cents } from '@sim/domain';
+import { cents, formatDate, formatDateRange, formatMoney, formatQuantity } from '@sim/domain';
 import { translate, type MessageKey } from '@sim/i18n';
 import { FONT_DIR, ROBOTO } from './fonts.js';
 import type { InvoiceDocument, InvoiceRenderer } from './types.js';
@@ -137,7 +137,7 @@ export class PdfMakeInvoiceRenderer implements InvoiceRenderer {
 
     // ----- information block (right) -----
     const serviceValue = doc.serviceDateTo
-      ? `${date(doc.serviceDateFrom)} – ${date(doc.serviceDateTo)}`
+      ? formatDateRange(doc.serviceDateFrom, doc.serviceDateTo, lang)
       : date(doc.serviceDateFrom);
     const info: [string, string][] = [
       [t('pdf.date'), date(doc.invoiceDate)],
@@ -149,7 +149,9 @@ export class PdfMakeInvoiceRenderer implements InvoiceRenderer {
     const infoBlock: Content = {
       absolutePosition: { x: DIN.infoBlockX, y: DIN.infoBlockY },
       table: {
-        widths: [32 * MM, DIN.infoBlockWidth - 32 * MM - 8],
+        // Label column as wide as the longest label, the rest for values (a service period
+        // "13.05.2024 – 17.05.2024" must fit on one line).
+        widths: ['auto', DIN.infoBlockWidth - 30 * MM],
         body: info.map(([label, value]) => [
           { text: label, color: MUTED_COLOR },
           { text: value, alignment: 'right' },
@@ -171,8 +173,9 @@ export class PdfMakeInvoiceRenderer implements InvoiceRenderer {
         margin: [0, 0, 0, 4],
       });
     }
+    // Centred title as in the reference invoices; the number is in the information block.
     body.push({
-      text: doc.number ? `${t('pdf.invoice')} ${doc.number}` : t('pdf.invoice'),
+      text: t('pdf.invoice'),
       alignment: 'center',
       fontSize: 16,
       bold: true,
@@ -188,6 +191,16 @@ export class PdfMakeInvoiceRenderer implements InvoiceRenderer {
       fillColor: accent,
       alignment,
     });
+    const positionRow = (p: InvoiceDocument['positions'][number]): TableCell[] => [
+      { text: String(p.position) },
+      { text: p.description },
+      {
+        text: `${formatQuantity(p.quantityMilli, lang)} ${t(`units.${p.unitCode}` as MessageKey)}`,
+        alignment: 'right',
+      },
+      { text: money(p.unitPriceCents), alignment: 'right' },
+      { text: money(p.lineTotalCents), alignment: 'right' },
+    ];
     const rows: TableCell[][] = [
       [
         headerCell(t('pdf.pos')),
@@ -196,17 +209,33 @@ export class PdfMakeInvoiceRenderer implements InvoiceRenderer {
         headerCell(t('pdf.unitPrice'), 'right'),
         headerCell(t('pdf.lineTotal'), 'right'),
       ],
-      ...doc.positions.map((p): TableCell[] => [
-        { text: String(p.position) },
-        { text: p.description },
-        {
-          text: `${formatQuantity(p.quantityMilli, lang)} ${t(`units.${p.unitCode}` as MessageKey)}`,
-          alignment: 'right',
-        },
-        { text: money(p.unitPriceCents), alignment: 'right' },
-        { text: money(p.lineTotalCents), alignment: 'right' },
-      ]),
     ];
+    const work = doc.positions.filter((p) => p.type === 'WORK');
+    const material = doc.positions.filter((p) => p.type === 'MATERIAL');
+    if (work.length > 0 && material.length > 0) {
+      // FR-INV-04: work and material as separate sections, each with its subtotal.
+      for (const [label, subtotalLabel, items, subtotal] of [
+        ['pdf.sectionWork', 'pdf.subtotalWork', work, doc.totals.sections.WORK.netCents],
+        [
+          'pdf.sectionMaterial',
+          'pdf.subtotalMaterial',
+          material,
+          doc.totals.sections.MATERIAL.netCents,
+        ],
+      ] as const) {
+        rows.push([{ text: t(label), colSpan: 5, bold: true, color: accent }, {}, {}, {}, {}]);
+        rows.push(...items.map(positionRow));
+        rows.push([
+          { text: t(subtotalLabel), colSpan: 4, alignment: 'right', italics: true },
+          {},
+          {},
+          {},
+          { text: money(subtotal), alignment: 'right', italics: true },
+        ]);
+      }
+    } else {
+      rows.push(...doc.positions.map(positionRow));
+    }
     body.push({
       table: {
         headerRows: 1,
@@ -262,6 +291,15 @@ export class PdfMakeInvoiceRenderer implements InvoiceRenderer {
     });
     if (smallBusiness) {
       body.push({ text: t('pdf.smallBusinessNote'), margin: [0, 10, 0, 0] });
+    }
+    // FR-INV-04 / § 35a EStG: private customers need the labour share for their tax return.
+    if (doc.buyer.type === 'PRIVATE' && doc.totals.sections.WORK.netCents > 0) {
+      body.push({
+        text: `${t(smallBusiness ? 'pdf.labourCostNoVat' : 'pdf.labourCost')}: ${money(
+          doc.totals.labourCostInclVatCents,
+        )}`,
+        margin: [0, 8, 0, 0],
+      });
     }
 
     // ----- closing -----

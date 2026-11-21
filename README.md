@@ -4,7 +4,7 @@ Small web app for tradespeople (Handwerker) to write, manage and track invoices 
 smartphone. Runs as a **Home Assistant App** on top of the HA MariaDB app, or standalone with
 Docker Compose. Requirements: [.claude/REQUIREMENTS.md](.claude/REQUIREMENTS.md).
 
-**Status:** milestones **M0–M4** done (see [Milestones](#milestones)).
+**Status:** milestones **M0–M5** done (see [Milestones](#milestones)).
 
 ## Quick start (Docker Compose)
 
@@ -93,8 +93,8 @@ Design decisions: [docs/adr/](docs/adr/).
 | M2  | Company, style, numbering    | ✅ done |
 | M3  | Customers & catalogue        | ✅ done |
 | M4  | Invoice editor & calculation | ✅ done |
-| M5  | PDF                          | next    |
-| M6  | Lifecycle & overview (+ E2E) |         |
+| M5  | PDF                          | ✅ done |
+| M6  | Lifecycle & overview (+ E2E) | next    |
 | M7  | Home Assistant App           |         |
 | M8  | Hardening                    |         |
 
@@ -158,3 +158,17 @@ one printed once in the log) and forces a password change at first login. Afterw
 - Copy any invoice into a new draft; delete drafts. The customer page lists the customer's
   invoices with the open total; customers with invoices can no longer be deleted.
 - Creating, finalizing as PDF and the status lifecycle follow in M5/M6.
+
+### M5 demo note
+
+- In the editor, **Vorschau (PDF)** opens the current draft as PDF with an "ENTWURF" watermark.
+- **Rechnung erstellen (PDF)** (enabled once the § 14 checklist is empty) asks for confirmation,
+  then assigns the next number, freezes company and customer data, stores the PDF and sets the
+  status to "Offen". The invoice is read-only from then on.
+- Finalized invoices offer **PDF öffnen** (browser viewer), **PDF teilen** (share sheet on
+  phones) and **PDF herunterladen**; the file is always the stored original, named like
+  `RechnungsNr_104_Karaca_22.05.2024.pdf`.
+- The PDF follows the reference invoices: work and material sections with subtotals, VAT per
+  rate, the § 35a labour share for private customers, the § 19 note for Kleinunternehmer, and
+  labels/number formats in the document language (de/pl/en); long invoices continue over several
+  pages with repeated table header and "Seite x von y".

@@ -31,3 +31,19 @@ export function formatDate(date: IsoDate, language: DocumentLanguage): string {
   const [y, m, d] = parts(date);
   return language === 'en' ? `${d}/${m}/${y}` : `${d}.${m}.${y}`;
 }
+
+/**
+ * Compact service period (FR-INV-01) as usual in German/Polish typography:
+ * same month "13.–17.05.2024", same year "28.05.–03.06.2024", otherwise both dates in full.
+ * English: "13–17/05/2024", "28/05–03/06/2024".
+ */
+export function formatDateRange(from: IsoDate, to: IsoDate, language: DocumentLanguage): string {
+  if (from === to) return formatDate(from, language);
+  const [fy, fm, fd] = parts(from);
+  const [ty, tm, td] = parts(to);
+  const sep = language === 'en' ? '/' : '.';
+  const end = formatDate(to, language);
+  if (fy !== ty) return `${formatDate(from, language)} – ${end}`;
+  if (fm !== tm) return `${fd}${sep}${fm}${language === 'en' ? '' : '.'}–${end}`;
+  return `${fd}${language === 'en' ? '' : '.'}–${td}${sep}${tm}${sep}${ty}`;
+}

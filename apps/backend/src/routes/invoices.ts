@@ -1,6 +1,10 @@
+import type { FastifyReply } from 'fastify';
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type, type Static } from '@sinclair/typebox';
 import {
+  buyerSnapshot,
+  invoiceFileName,
+  sellerSnapshot,
   MAX_POSITIONS,
   MAX_QUANTITY_MILLI,
   MAX_UNIT_PRICE_CENTS,
@@ -11,10 +15,14 @@ import {
   type InvoiceDraftData,
   type TaxMode,
 } from '@sim/domain';
-import type { Language } from '@sim/i18n';
+import { translate, type Language } from '@sim/i18n';
 import type { Db } from '../db.js';
 import { currentAuth } from '../auth/guard.js';
 import { loadCompany } from '../company/repository.js';
+import type { FileStore } from '../files/store.js';
+import { finalizeInvoice } from '../invoices/finalize.js';
+import { buildInvoiceDocument, loadPrintStyle } from '../pdf/invoice-document.js';
+import type { InvoiceRenderer } from '../pdf/types.js';
 import { findCustomer, type Customer } from '../customers/repository.js';
 import {
   createDraft,
@@ -126,8 +134,29 @@ const ListItem = Type.Object({
   overdue: Type.Boolean(),
 });
 
-/** FR-INV-01..08: invoice drafts and the editor API – available to every user. */
-export const invoiceRoutes: FastifyPluginAsyncTypebox<{ db: Db }> = async (app, { db }) => {
+const BinarySchema = Type.Unsafe<Buffer>({ type: 'string', format: 'binary' });
+
+/** RFC 6266: ASCII fallback plus the exact UTF-8 name (keeps "Wiśniewski", "Müller"). */
+export function contentDisposition(fileName: string): string {
+  const ascii = fileName
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\x20-\x7E]/g, '_')
+    .replace(/["\\]/g, '');
+  return `inline; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
+}
+
+export interface InvoiceRoutesOptions {
+  db: Db;
+  files: FileStore;
+  renderer: InvoiceRenderer;
+}
+
+/** FR-INV-01..08, -11, -12, -15: invoices – available to every user. */
+export const invoiceRoutes: FastifyPluginAsyncTypebox<InvoiceRoutesOptions> = async (
+  app,
+  { db, files, renderer },
+) => {
   const notFound = { error: 'INVOICE_NOT_FOUND', message: 'Invoice not found' } as const;
 
   /** Full editor view: live totals for drafts (current company tax mode), § 14 check. */
@@ -332,6 +361,135 @@ export const invoiceRoutes: FastifyPluginAsyncTypebox<{ db: Db }> = async (app, 
         });
       }
       return reply.code(204).send(null);
+    },
+  );
+
+  app.post(
+    '/invoices/:id/finalize',
+    {
+      schema: {
+        summary: 'Finalize ("Create PDF"): number, snapshots, stored PDF, status OPEN (FR-INV-11)',
+        tags: ['invoices'],
+        params: IdParamsSchema,
+        body: Type.Object({ version: Type.Integer({ minimum: 1 }) }),
+        response: { 200: InvoiceDetail, ...errorResponses(400, 401, 403, 404, 409) },
+      },
+    },
+    async (request, reply) => {
+      const { id } = request.params;
+      const outcome = await finalizeInvoice(
+        db,
+        files,
+        renderer,
+        id,
+        request.body.version,
+        currentAuth(request).user.id,
+      );
+      switch (outcome.result) {
+        case 'not-found':
+          return reply.code(404).send(notFound);
+        case 'not-editable':
+          return reply
+            .code(409)
+            .send({ error: 'INVOICE_NOT_EDITABLE', message: 'Invoice is already finalized' });
+        case 'conflict':
+          return reply.code(409).send({
+            error: 'INVOICE_CHANGED',
+            message: 'The invoice was changed elsewhere; reload it',
+          });
+        case 'number-taken':
+          return reply.code(409).send({
+            error: 'NUMBER_TAKEN',
+            message: 'The next invoice number is already used; raise the next number',
+          });
+        case 'incomplete':
+          return reply.code(400).send({
+            error: 'INVOICE_INCOMPLETE',
+            message: 'Mandatory invoice data is missing',
+            problems: outcome.problems,
+          });
+        case 'finalized':
+          request.log.info({ invoiceId: id, number: outcome.number }, 'invoice finalized');
+          return detail((await findInvoice(db, id))!);
+      }
+    },
+  );
+
+  /** FR-INV-15: the stored reference PDF, byte for byte – never re-rendered. */
+  async function sendStoredPdf(invoice: StoredInvoice, reply: FastifyReply) {
+    const row = invoice.pdfFileId ? await files.find(invoice.pdfFileId, 'INVOICE_PDF') : undefined;
+    if (!row || !invoice.number || !invoice.buyerSnapshot) {
+      return reply
+        .code(409)
+        .send({ error: 'INVOICE_NOT_FINALIZED', message: 'There is no PDF for this invoice yet' });
+    }
+    const name = invoiceFileName(
+      translate(invoice.documentLanguage, 'pdf.filePrefix'),
+      invoice.number,
+      invoice.buyerSnapshot,
+      invoice.invoiceDate,
+    );
+    return reply
+      .type(row.mime_type)
+      .header('Content-Disposition', contentDisposition(name))
+      .header('Cache-Control', 'private, no-cache')
+      .header('X-Content-Type-Options', 'nosniff')
+      .send(await files.read(row));
+  }
+
+  app.get(
+    '/invoices/:id/pdf',
+    {
+      schema: {
+        summary: 'Download the stored PDF of a finalized invoice (byte-identical, FR-INV-15)',
+        tags: ['invoices'],
+        params: IdParamsSchema,
+        produces: ['application/pdf'],
+        response: { 200: BinarySchema, ...errorResponses(401, 403, 404, 409) },
+      },
+    },
+    async (request, reply) => {
+      const invoice = await findInvoice(db, request.params.id);
+      if (!invoice) return reply.code(404).send(notFound);
+      return sendStoredPdf(invoice, reply);
+    },
+  );
+
+  app.get(
+    '/invoices/:id/preview',
+    {
+      schema: {
+        summary: 'PDF preview: drafts with "ENTWURF" watermark and no number (FR-INV-12)',
+        tags: ['invoices'],
+        params: IdParamsSchema,
+        produces: ['application/pdf'],
+        response: { 200: BinarySchema, ...errorResponses(401, 403, 404, 409) },
+      },
+    },
+    async (request, reply) => {
+      const invoice = await findInvoice(db, request.params.id);
+      if (!invoice) return reply.code(404).send(notFound);
+      if (invoice.status !== 'DRAFT') return sendStoredPdf(invoice, reply);
+      const [{ profile }, customer, style] = await Promise.all([
+        loadCompany(db),
+        invoice.customerId ? findCustomer(db, invoice.customerId) : Promise.resolve(undefined),
+        loadPrintStyle(db, files),
+      ]);
+      const document = buildInvoiceDocument({
+        invoice,
+        seller: sellerSnapshot(profile),
+        buyer: customer ? buyerSnapshot(customer) : null,
+        taxMode: profile.taxMode,
+        style,
+        watermark: translate(invoice.documentLanguage, 'pdf.draft'),
+      });
+      const pdf = await renderer.render(document);
+      const name = `${translate(invoice.documentLanguage, 'pdf.draft')}.pdf`;
+      return reply
+        .type(renderer.mimeType)
+        .header('Content-Disposition', contentDisposition(name))
+        .header('Cache-Control', 'no-store')
+        .send(pdf);
     },
   );
 

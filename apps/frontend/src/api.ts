@@ -134,6 +134,29 @@ async function request<T>(method: Method, path: string, options: RequestOptions 
   return data as T;
 }
 
+/** Extracts the file name from Content-Disposition (prefers the UTF-8 `filename*`). */
+export function fileNameFrom(header: string | null, fallback: string): string {
+  if (!header) return fallback;
+  const utf8 = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (utf8?.[1]) return decodeURIComponent(utf8[1]);
+  const plain = /filename="([^"]+)"/i.exec(header);
+  return plain?.[1] ?? fallback;
+}
+
+/** Downloads a file (e.g. the stored invoice PDF) with its server-side file name. */
+async function getFile(path: string, fallbackName: string): Promise<File> {
+  const res = await send('GET', path, { as: 'blob' });
+  if (!res.ok) {
+    const data = (await res.json().catch(() => null)) as {
+      error?: string;
+      message?: string;
+    } | null;
+    throw new ApiError(res.status, data?.error ?? 'UNKNOWN', data?.message ?? res.statusText);
+  }
+  const name = fileNameFrom(res.headers.get('Content-Disposition'), fallbackName);
+  return new File([await res.blob()], name, { type: res.headers.get('Content-Type') ?? '' });
+}
+
 export const api = {
   get: <T>(path: string) => request<T>('GET', path),
   post: <T>(path: string, body: unknown = {}) => request<T>('POST', path, { json: body }),
@@ -146,6 +169,7 @@ export const api = {
   /** POSTs JSON and returns the binary response, e.g. a PDF preview. */
   postForBlob: (path: string, body: unknown) =>
     request<Blob>('POST', path, { json: body, as: 'blob' }),
+  getFile,
 };
 
 export interface Customer extends CustomerData {

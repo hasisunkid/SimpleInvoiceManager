@@ -180,6 +180,9 @@ export function useInvoiceEditor(id: number) {
     void flush();
   });
 
+  /** Version the server last confirmed – finalize must name it (FR-INV-11). */
+  const currentVersion = () => version;
+
   return {
     invoice,
     draft,
@@ -192,5 +195,7 @@ export function useInvoiceEditor(id: number) {
     load,
     save,
     flush,
+    apply,
+    currentVersion,
   };
 }

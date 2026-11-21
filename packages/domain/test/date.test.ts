@@ -25,3 +25,15 @@ describe('dates', () => {
     expect(() => formatDate('2024-02-30', 'de')).toThrow(RangeError);
   });
 });
+
+describe('formatDateRange', () => {
+  it('shortens ranges within a month or a year', async () => {
+    const { formatDateRange } = await import('../src/index.js');
+    expect(formatDateRange('2024-05-13', '2024-05-17', 'de')).toBe('13.–17.05.2024');
+    expect(formatDateRange('2024-05-28', '2024-06-03', 'pl')).toBe('28.05.–03.06.2024');
+    expect(formatDateRange('2024-12-28', '2025-01-03', 'de')).toBe('28.12.2024 – 03.01.2025');
+    expect(formatDateRange('2024-05-13', '2024-05-17', 'en')).toBe('13–17/05/2024');
+    expect(formatDateRange('2024-05-28', '2024-06-03', 'en')).toBe('28/05–03/06/2024');
+    expect(formatDateRange('2024-05-13', '2024-05-13', 'de')).toBe('13.05.2024');
+  });
+});

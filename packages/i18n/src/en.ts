@@ -96,6 +96,10 @@ export const en: Messages = {
     CUSTOMER_ARCHIVED: 'This customer is archived. Please restore them first.',
     INVALID_DATE: 'Please enter a valid date.',
     INVALID_QUANTITY: 'Please enter a quantity greater than 0, e.g. 1 or 2.5.',
+    INVOICE_INCOMPLETE: 'The invoice is not complete yet. Please check the list below.',
+    INVOICE_NOT_FINALIZED: 'There is no PDF for this invoice yet. Create the invoice first.',
+    NUMBER_TAKEN:
+      'The next invoice number is already in use. Please ask the administrator to raise the next number.',
   },
   password: {
     changeTitle: 'Change password',
@@ -282,6 +286,12 @@ export const en: Messages = {
     bic: 'BIC',
     site: 'Site',
     filePrefix: 'Invoice',
+    sectionWork: 'Work',
+    sectionMaterial: 'Material',
+    subtotalWork: 'Subtotal work',
+    subtotalMaterial: 'Subtotal material',
+    labourCost: 'Labour costs included, incl. VAT',
+    labourCostNoVat: 'Labour costs included',
   },
   units: {
     HUR: 'h',
@@ -459,6 +469,16 @@ export const en: Messages = {
     catalogTitle: 'Choose a service',
     catalogSearch: 'Search services',
     close: 'Close',
+    preview: 'Preview (PDF)',
+    finalize: 'Create invoice (PDF)',
+    finalizing: 'Creating invoice …',
+    confirmFinalize:
+      'Create the invoice now? It gets a number and can no longer be changed afterwards.',
+    finalized: 'Invoice {number} has been created.',
+    openPdf: 'Open PDF',
+    sharePdf: 'Share PDF',
+    downloadPdf: 'Download PDF',
+    status: 'Status',
   },
   finalizeProblems: {
     COMPANY_INCOMPLETE: 'Company details are incomplete (More → Company details)',

@@ -30,7 +30,21 @@ export function createDb(config: Config): Db {
   return knex({
     client: 'mysql2',
     connection: connection(config, true),
-    pool: { min: 0, max: 10 },
+    pool: {
+      min: 0,
+      max: 10,
+      // READ COMMITTED avoids InnoDB gap locks, which deadlocked parallel draft saves on
+      // different invoices (delete + insert of positions). Everything that must be serialized
+      // uses explicit row locks (SELECT … FOR UPDATE), which work the same here. See ADR 0009.
+      afterCreate(
+        conn: { query(sql: string, cb: (err: Error | null) => void): void },
+        done: (err: Error | null, conn: unknown) => void,
+      ) {
+        conn.query('SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED', (err) =>
+          done(err, conn),
+        );
+      },
+    },
     migrations: { migrationSource, tableName: 'knex_migrations' },
   });
 }
@@ -69,4 +83,29 @@ export async function migrationStatus(db: Db): Promise<MigrationStatus> {
 export async function migrateLatest(db: Db): Promise<string[]> {
   const [, applied] = (await db.migrate.latest()) as [number, string[]];
   return applied;
+}
+
+/** MariaDB deadlock / lock wait timeout – the transaction can safely be repeated. */
+export function isRetryableLockError(err: unknown): boolean {
+  const code = (err as { code?: string } | null)?.code;
+  return code === 'ER_LOCK_DEADLOCK' || code === 'ER_LOCK_WAIT_TIMEOUT';
+}
+
+/**
+ * Runs a write transaction and repeats it (up to 3 attempts) if the database aborted it because
+ * of a deadlock. The callback must be safe to repeat – it runs in a fresh transaction each time.
+ */
+export async function transactionWithRetry<T>(
+  db: Db,
+  work: (trx: Knex.Transaction) => Promise<T>,
+  attempts = 3,
+): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await db.transaction(work);
+    } catch (err) {
+      if (attempt >= attempts || !isRetryableLockError(err)) throw err;
+      await new Promise((resolve) => setTimeout(resolve, 20 * attempt + Math.random() * 30));
+    }
+  }
 }

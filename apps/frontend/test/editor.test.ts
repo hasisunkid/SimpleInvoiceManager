@@ -119,6 +119,7 @@ async function clickText(wrapper: VueWrapper, text: string) {
 beforeEach(() => vi.resetModules());
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   document.body.innerHTML = '';
 });
 
@@ -257,5 +258,56 @@ describe('invoice editor (FR-INV-01..06, NFR-UX-02)', () => {
     expect(wrapper.find('#inv-subject').element.matches(':disabled')).toBe(true);
     await new Promise((resolve) => setTimeout(resolve, 1000));
     expect(puts(fetch)).toHaveLength(0);
+  });
+
+  it('finalizes after confirmation and then offers the stored PDF (FR-INV-11, FR-PDF-05)', async () => {
+    const ready = invoice({ customerId: 5, customer: nowak, finalizeProblems: [], version: 3 });
+    const { wrapper, fetch } = await mountEditor({
+      'GET api/invoices/1': () => ({ body: ready }),
+      'POST api/invoices/1/finalize': () => ({
+        body: invoice({ ...ready, status: 'OPEN', number: '104', version: 4 }),
+      }),
+    });
+    const confirm = vi
+      .spyOn(window, 'confirm')
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(true);
+
+    await clickText(wrapper, 'Rechnung erstellen (PDF)');
+    expect(fetch.mock.calls.some(([url]) => String(url).endsWith('/finalize'))).toBe(false);
+
+    await clickText(wrapper, 'Rechnung erstellen (PDF)');
+    await vi.waitFor(() => expect(wrapper.text()).toContain('Rechnung 104 wurde erstellt.'));
+    expect(confirm).toHaveBeenCalledTimes(2);
+    const call = fetch.mock.calls.find(([url]) => String(url).endsWith('/finalize'))!;
+    expect(JSON.parse((call[1] as RequestInit).body as string)).toEqual({ version: 3 });
+
+    expect(wrapper.find('h1').text()).toBe('Rechnung 104');
+    const open = wrapper.findAll('a').find((a) => a.text() === 'PDF öffnen')!;
+    expect(open.attributes('href')).toBe('api/invoices/1/pdf');
+    expect(open.attributes('target')).toBe('_blank');
+    expect(wrapper.findAll('a').some((a) => a.text() === 'PDF herunterladen')).toBe(true);
+    expect(wrapper.findAll('button').some((b) => b.text() === 'Rechnung erstellen (PDF)')).toBe(
+      false,
+    );
+  });
+
+  it('keeps "create" disabled while the § 14 checklist is not empty (FR-INV-07)', async () => {
+    const { wrapper } = await mountEditor({
+      'GET api/invoices/1': () => ({ body: invoice() }),
+    });
+    const button = wrapper.findAll('button').find((b) => b.text() === 'Rechnung erstellen (PDF)')!;
+    expect(button.attributes('disabled')).toBeDefined();
+    expect(wrapper.text()).toContain('Mindestens eine Position hinzufügen');
+  });
+
+  it('opens the preview of the saved state in a new tab (FR-INV-12)', async () => {
+    const tab = { location: { href: '' } };
+    vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window);
+    const { wrapper } = await mountEditor({
+      'GET api/invoices/1': () => ({ body: invoice({ version: 7 }) }),
+    });
+    await clickText(wrapper, 'Vorschau (PDF)');
+    await vi.waitFor(() => expect(tab.location.href).toBe('api/invoices/1/preview?v=7'));
   });
 });

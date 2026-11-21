@@ -103,7 +103,7 @@ export async function buildApp({
       await api.register(companyRoutes, { db });
       await api.register(customerRoutes, { db });
       await api.register(catalogRoutes, { db });
-      await api.register(invoiceRoutes, { db });
+      await api.register(invoiceRoutes, { db, files, renderer });
       await api.register(settingsRoutes, { db, files, renderer });
       api.get('/openapi.json', { config: { public: true }, schema: { hide: true } }, async () =>
         app.swagger(),

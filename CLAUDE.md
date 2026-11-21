@@ -41,6 +41,10 @@ Before reporting work as done: `npm run lint && npm run typecheck && npm test` m
   `pdf.*` keys via `translate()` from `@sim/i18n`.
 - "Today" / the current year on the server: use `businessToday()` / `businessYear()`
   (Europe/Berlin), never `new Date()` directly.
+- DB connections run in READ COMMITTED (ADR 0009): serialize with explicit `forUpdate()` row
+  locks, and wrap write transactions that may run in parallel in `transactionWithRetry()`.
+- Issued invoices are immutable: never re-render or change a finalized invoice; the stored PDF
+  (`pdf_file_id`) is the reference copy.
 - Migrations: add a new file in `apps/backend/src/migrations/` and register it in `index.ts`.
   Never edit a released migration.
 - Integration tests use a real MariaDB (`test/helpers/db.ts`), no DB mocks.

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  customerShortName,
   dueDate,
+  invoiceFileName,
   finalizeProblems,
   isOverdue,
   positionProblems,
@@ -122,5 +124,47 @@ describe('positions and dates', () => {
     expect(isOverdue('OPEN', '2024-06-21', '2024-06-22')).toBe(true);
     expect(isOverdue('OPEN', '2024-06-21', '2024-06-21')).toBe(false);
     expect(isOverdue('PAID', '2024-06-21', '2025-01-01')).toBe(false);
+  });
+});
+
+describe('PDF file names (FR-PDF-04)', () => {
+  const illing = { type: 'PRIVATE' as const, name: 'Anna Illing', attention: '' };
+  const omicron = {
+    type: 'BUSINESS' as const,
+    name: 'Omicronservice GmbH',
+    attention: 'Herr Karaca',
+  };
+
+  it('follows the reference files', () => {
+    expect(invoiceFileName('RechnungsNr', '102', illing, '2024-03-05')).toBe(
+      'RechnungsNr_102_Illing_05.03.2024.pdf',
+    );
+    expect(invoiceFileName('RechnungsNr', '104', omicron, '2024-05-22')).toBe(
+      'RechnungsNr_104_Karaca_22.05.2024.pdf',
+    );
+  });
+
+  it('falls back to the first word of the company name', () => {
+    expect(customerShortName({ ...omicron, attention: '' })).toBe('Omicronservice');
+    expect(customerShortName({ ...omicron, name: '', attention: '' })).toBe('');
+  });
+
+  it('removes unsafe characters but keeps Polish and German letters', () => {
+    expect(
+      invoiceFileName(
+        'Faktura',
+        'RE/2026/0007',
+        { type: 'PRIVATE', name: 'Łukasz Wiśniewski', attention: '' },
+        '2026-11-21',
+      ),
+    ).toBe('Faktura_RE-2026-0007_Wiśniewski_21.11.2026.pdf');
+    expect(
+      invoiceFileName(
+        'Invoice',
+        '5',
+        { type: 'BUSINESS', name: '../../etc/passwd', attention: '' },
+        '2026-11-21',
+      ),
+    ).toBe('Invoice_5_etc-passwd_21.11.2026.pdf');
   });
 });

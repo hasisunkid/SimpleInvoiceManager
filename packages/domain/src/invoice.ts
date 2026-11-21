@@ -111,3 +111,47 @@ export function finalizeProblems(
   }
   return problems;
 }
+
+/**
+ * Short customer name for file names, as in the reference files ("Illing", "Karaca"): the
+ * person's last name – for private customers from the name, for businesses from the contact
+ * person – otherwise the first word of the company name.
+ */
+export function customerShortName(buyer: {
+  type: 'BUSINESS' | 'PRIVATE';
+  name: string;
+  attention: string;
+}): string {
+  const person = (buyer.type === 'PRIVATE' ? buyer.name : buyer.attention)
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (person.length > 0) return person[person.length - 1]!;
+  return buyer.name.trim().split(/\s+/)[0] ?? '';
+}
+
+/** Keeps letters (incl. ä, ł …), digits, "-" and "."; everything else becomes "-". */
+function safeFilePart(value: string): string {
+  return value
+    .normalize('NFC')
+    .replace(/[^\p{L}\p{N}.-]+/gu, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/^[-.]+|[-.]+$/g, '');
+}
+
+/**
+ * FR-PDF-04: `RechnungsNr_{number}_{customerShortName}_{dd.MM.yyyy}.pdf`; the prefix is localised
+ * by the caller ("RechnungsNr", "Faktura", "Invoice").
+ */
+export function invoiceFileName(
+  prefix: string,
+  number: string,
+  buyer: { type: 'BUSINESS' | 'PRIVATE'; name: string; attention: string },
+  invoiceDate: IsoDate,
+): string {
+  const [y, m, d] = invoiceDate.split('-');
+  const parts = [prefix, number, customerShortName(buyer), `${d}.${m}.${y}`]
+    .map(safeFilePart)
+    .filter(Boolean);
+  return `${parts.join('_')}.pdf`;
+}

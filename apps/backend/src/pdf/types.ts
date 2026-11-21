@@ -1,4 +1,11 @@
-import type { IsoDate, SellerSnapshot, TaxMode, VatRate } from '@sim/domain';
+import type {
+  CustomerType,
+  IsoDate,
+  PositionType,
+  SellerSnapshot,
+  TaxMode,
+  VatRate,
+} from '@sim/domain';
 import type { Language } from '@sim/i18n';
 import type { LogoPosition } from '../style/repository.js';
 
@@ -17,6 +24,8 @@ export interface InvoiceDocument {
   };
   readonly seller: SellerSnapshot;
   readonly buyer: {
+    /** Private customers get the § 35a labour-cost line (FR-INV-04). */
+    readonly type: CustomerType;
     readonly name: string;
     readonly attention: string;
     readonly street: string;
@@ -42,11 +51,19 @@ export interface InvoiceDocument {
     readonly netCents: number;
     readonly vatGroups: readonly { rate: VatRate; netCents: number; vatCents: number }[];
     readonly grossCents: number;
+    /** FR-INV-04: net subtotal per section. */
+    readonly sections: {
+      readonly WORK: { netCents: number };
+      readonly MATERIAL: { netCents: number };
+    };
+    /** § 35a EStG labour share incl. VAT. */
+    readonly labourCostInclVatCents: number;
   };
 }
 
 export interface InvoiceDocumentPosition {
   readonly position: number;
+  readonly type: PositionType;
   readonly description: string;
   /** Thousandths, e.g. 1500 = 1,5. */
   readonly quantityMilli: number;

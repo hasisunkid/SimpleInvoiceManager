@@ -2,6 +2,8 @@ import type { Knex } from 'knex';
 import {
   calculateInvoice,
   dueDate,
+  type BuyerSnapshot,
+  type SellerSnapshot,
   type InvoiceDraftData,
   type InvoicePositionData,
   type InvoiceStatus,
@@ -13,7 +15,7 @@ import {
   type VatRate,
 } from '@sim/domain';
 import type { Language } from '@sim/i18n';
-import type { Db } from '../db.js';
+import { transactionWithRetry, type Db } from '../db.js';
 
 type Executor = Db | Knex.Transaction;
 
@@ -37,7 +39,9 @@ interface InvoiceRow {
   vat_total_cents: number;
   gross_total_cents: number;
   labour_incl_vat_cents: number;
-  buyer_snapshot: string | null;
+  seller_snapshot: string | object | null;
+  buyer_snapshot: string | object | null;
+  pdf_file_id: number | null;
   paid_at: string | null;
   version: number;
   created_at: Date;
@@ -71,6 +75,11 @@ export interface StoredInvoice extends Omit<InvoiceDraftData, 'positions'> {
   dueDate: string;
   paidAt: string | null;
   version: number;
+  /** Frozen on finalize (FR-COMP-05); null for drafts. */
+  sellerSnapshot: SellerSnapshot | null;
+  buyerSnapshot: BuyerSnapshot | null;
+  /** The stored reference PDF (FR-INV-15); null for drafts. */
+  pdfFileId: number | null;
   positions: StoredPosition[];
   totals: {
     netCents: number;
@@ -80,6 +89,15 @@ export interface StoredInvoice extends Omit<InvoiceDraftData, 'positions'> {
   };
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * MariaDB's JSON type is LONGTEXT; depending on the driver's column detection it arrives as a
+ * string or as an already parsed object – accept both.
+ */
+function parseJson<T>(value: string | T | null): T | null {
+  if (value === null) return null;
+  return typeof value === 'string' ? (JSON.parse(value) as T) : value;
 }
 
 function toInvoice(row: InvoiceRow, positions: PositionRow[]): StoredInvoice {
@@ -101,6 +119,9 @@ function toInvoice(row: InvoiceRow, positions: PositionRow[]): StoredInvoice {
     taxMode: row.tax_mode,
     paidAt: row.paid_at,
     version: row.version,
+    sellerSnapshot: parseJson(row.seller_snapshot as string | SellerSnapshot | null),
+    buyerSnapshot: parseJson(row.buyer_snapshot as string | BuyerSnapshot | null),
+    pdfFileId: row.pdf_file_id,
     positions: positions.map((p) => ({
       type: p.type,
       description: p.description,
@@ -159,7 +180,7 @@ function draftColumns(data: InvoiceDraftData, taxMode: TaxMode, totals: InvoiceT
   };
 }
 
-async function replacePositions(
+export async function replacePositions(
   trx: Knex.Transaction,
   invoiceId: number,
   positions: ReturnType<typeof calculateInvoice<InvoicePositionData>>['positions'],
@@ -205,7 +226,7 @@ export async function createDraft(
   taxMode: TaxMode,
   userId: number,
 ): Promise<number> {
-  return db.transaction(async (trx) => {
+  return transactionWithRetry(db, async (trx) => {
     const { positions, totals } = calculateInvoice(data.positions, taxMode);
     const [id] = await trx('invoice').insert({
       ...draftColumns(data, taxMode, totals),
@@ -234,7 +255,7 @@ export async function saveDraft(
   taxMode: TaxMode,
   userId: number,
 ): Promise<SaveResult> {
-  return db.transaction(async (trx) => {
+  return transactionWithRetry(db, async (trx) => {
     const row = await trx<InvoiceRow>('invoice')
       .select('status', 'version')
       .where({ id })

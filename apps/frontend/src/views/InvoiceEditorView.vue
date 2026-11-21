@@ -6,6 +6,7 @@ import { LUMP_SUM_UNIT, formatDate, type CompanyProfile, type DocumentLanguage }
 import type { Language } from '@sim/i18n';
 import { api, type CatalogItem, type Customer, type Invoice } from '../api';
 import CatalogSheet from '../components/CatalogSheet.vue';
+import InvoicePdfActions from '../components/InvoicePdfActions.vue';
 import CustomerPicker from '../components/CustomerPicker.vue';
 import InvoiceTotals from '../components/InvoiceTotals.vue';
 import LanguageSelect from '../components/LanguageSelect.vue';
@@ -28,6 +29,7 @@ const customer = ref<Customer | null>(null);
 const expandedKey = ref<number | null>(null);
 const catalogOpen = ref(false);
 const message = ref('');
+const finalizing = ref(false);
 const error = ref('');
 const dragIndex = ref<number | null>(null);
 
@@ -151,6 +153,39 @@ function onDrop(index: number): void {
   dragIndex.value = null;
 }
 
+/**
+ * FR-INV-12: preview of the current state. The tab is opened synchronously (iOS blocks pop-ups
+ * opened after an await), then pointed at the preview once pending changes are saved.
+ */
+async function preview(): Promise<void> {
+  const tab = window.open('', '_blank');
+  await editor.flush();
+  const url = `api/invoices/${props.id}/preview?v=${editor.currentVersion()}`;
+  if (tab) tab.location.href = url;
+  else window.location.href = url;
+}
+
+/** FR-INV-11: "Create PDF" – assigns the number; afterwards the invoice is read-only. */
+async function finalize(): Promise<void> {
+  if (!window.confirm(t('editor.confirmFinalize'))) return;
+  finalizing.value = true;
+  error.value = message.value = '';
+  try {
+    await editor.flush();
+    const finalized = await api.post<Invoice>(`invoices/${props.id}/finalize`, {
+      version: editor.currentVersion(),
+    });
+    editor.apply(finalized);
+    message.value = t('editor.finalized', { number: finalized.number ?? '' });
+  } catch (err) {
+    error.value = errorText(err);
+    // The checklist may have changed on the server – show the current one.
+    await editor.load().catch(() => {});
+  } finally {
+    finalizing.value = false;
+  }
+}
+
 async function copyInvoice(): Promise<void> {
   try {
     await editor.flush();
@@ -182,6 +217,13 @@ async function reload(): Promise<void> {
     <RouterLink :to="{ name: 'invoices' }" class="back-link">{{ t('common.back') }}</RouterLink>
     <div class="page__head">
       <h1>{{ title }}</h1>
+      <span
+        v-if="invoice && readOnly"
+        class="badge"
+        :class="`badge--${invoice.status.toLowerCase()}`"
+      >
+        {{ t(`invoiceStatus.${invoice.status}`) }}
+      </span>
       <span
         v-if="loaded && !readOnly"
         class="save-state"
@@ -361,6 +403,22 @@ async function reload(): Promise<void> {
           </ul>
         </template>
         <p v-else class="card__lead">{{ t('editor.ready') }}</p>
+      </section>
+
+      <section v-if="readOnly && invoice.number" class="card">
+        <InvoicePdfActions :invoice-id="invoice.id" :number="invoice.number" />
+      </section>
+
+      <section v-if="!readOnly" class="card">
+        <button
+          type="button"
+          class="primary"
+          :disabled="finalizing || invoice.finalizeProblems.length > 0 || saveState === 'conflict'"
+          @click="finalize"
+        >
+          {{ finalizing ? t('editor.finalizing') : t('editor.finalize') }}
+        </button>
+        <button type="button" class="secondary" @click="preview">{{ t('editor.preview') }}</button>
       </section>
 
       <section class="card">

@@ -103,6 +103,11 @@ export const de = {
     CUSTOMER_ARCHIVED: 'Dieser Kunde ist archiviert. Stellen Sie ihn zuerst wieder her.',
     INVALID_DATE: 'Bitte ein gültiges Datum eingeben.',
     INVALID_QUANTITY: 'Bitte eine Menge größer als 0 eingeben, z. B. 1 oder 2,5.',
+    INVOICE_INCOMPLETE: 'Die Rechnung ist noch nicht vollständig. Bitte die Liste unten prüfen.',
+    INVOICE_NOT_FINALIZED:
+      'Für diese Rechnung gibt es noch kein PDF. Erstellen Sie die Rechnung zuerst.',
+    NUMBER_TAKEN:
+      'Die nächste Rechnungsnummer ist schon vergeben. Bitte den Administrator bitten, die nächste Nummer zu erhöhen.',
   },
   password: {
     changeTitle: 'Passwort ändern',
@@ -289,6 +294,12 @@ export const de = {
     bic: 'BIC',
     site: 'Baustelle',
     filePrefix: 'RechnungsNr',
+    sectionWork: 'Arbeit',
+    sectionMaterial: 'Material',
+    subtotalWork: 'Zwischensumme Arbeit',
+    subtotalMaterial: 'Zwischensumme Material',
+    labourCost: 'Enthaltene Arbeitskosten inkl. MwSt.',
+    labourCostNoVat: 'Enthaltene Arbeitskosten',
   },
   units: {
     HUR: 'Std.',
@@ -468,6 +479,16 @@ export const de = {
     catalogTitle: 'Leistung auswählen',
     catalogSearch: 'Leistung suchen',
     close: 'Schließen',
+    preview: 'Vorschau (PDF)',
+    finalize: 'Rechnung erstellen (PDF)',
+    finalizing: 'Rechnung wird erstellt …',
+    confirmFinalize:
+      'Rechnung jetzt erstellen? Sie bekommt eine Nummer und kann danach nicht mehr geändert werden.',
+    finalized: 'Rechnung {number} wurde erstellt.',
+    openPdf: 'PDF öffnen',
+    sharePdf: 'PDF teilen',
+    downloadPdf: 'PDF herunterladen',
+    status: 'Status',
   },
   finalizeProblems: {
     COMPANY_INCOMPLETE: 'Firmendaten sind unvollständig (Mehr → Firmendaten)',

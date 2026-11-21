@@ -26,8 +26,8 @@ export function buildSampleInvoice(
   const smallBusiness = company.taxMode === 'SMALL_BUSINESS_19';
   const rate: VatRate = smallBusiness ? 0 : 19;
   const lines = [
-    { description: t('pdfSample.work'), cents: 175_500 },
-    { description: t('pdfSample.material'), cents: 64_000 },
+    { type: 'WORK' as const, description: t('pdfSample.work'), cents: 175_500 },
+    { type: 'MATERIAL' as const, description: t('pdfSample.material'), cents: 64_000 },
   ];
   const net = lines.reduce((sum, l) => sum + l.cents, 0);
   const vat = smallBusiness ? 0 : Number(divRoundHalfUp(BigInt(net * rate), 100n));
@@ -39,6 +39,7 @@ export function buildSampleInvoice(
     style: { accentColor: style.accentColor, logoPosition: style.logoPosition, logo: style.logo },
     seller: { ...seller, name: seller.name || translate(language, 'company.name') },
     buyer: {
+      type: 'BUSINESS',
       name: t('pdfSample.customer'),
       attention: '',
       street: t('pdfSample.street'),
@@ -59,6 +60,7 @@ export function buildSampleInvoice(
     taxMode: company.taxMode,
     positions: lines.map((line, index) => ({
       position: index + 1,
+      type: line.type,
       description: line.description,
       quantityMilli: 1000,
       unitCode: 'LS',
@@ -70,6 +72,8 @@ export function buildSampleInvoice(
       netCents: net,
       vatGroups: smallBusiness ? [] : [{ rate, netCents: net, vatCents: vat }],
       grossCents: net + vat,
+      sections: { WORK: { netCents: lines[0]!.cents }, MATERIAL: { netCents: lines[1]!.cents } },
+      labourCostInclVatCents: 0,
     },
   };
 }
