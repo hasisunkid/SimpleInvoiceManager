@@ -32,8 +32,13 @@ beforeEach(() => {
   vi.resetModules();
   // NFR-UX-01: phone viewport.
   window.innerWidth = 375;
+  // Debounced search: time only moves when vi.waitFor advances it (deterministic on slow CI).
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 describe('CustomersView (FR-CUST-02)', () => {
   it('searches as you type with a debounced request', async () => {

@@ -1,0 +1,12 @@
+configuration:
+  database:
+    name: Datenbankname
+    description: Name der eigenen Datenbank in der MariaDB-App. Niemals "homeassistant" verwenden.
+  initial_admin_password:
+    name: Start-Passwort für admin
+    description: Passwort des Kontos "admin" beim allerersten Start (mindestens 10 Zeichen). Es muss bei der ersten Anmeldung geändert werden.
+  log_level:
+    name: Protokollstufe
+    description: Wie viel die App ins Protokoll schreibt.
+network:
+  8099/tcp: Direkter Zugriff ohne Home Assistant (optional, normalerweise leer lassen)

@@ -1,0 +1,12 @@
+configuration:
+  database:
+    name: Nazwa bazy danych
+    description: Nazwa własnej bazy danych w aplikacji MariaDB. Nigdy nie używaj "homeassistant".
+  initial_admin_password:
+    name: Hasło startowe administratora
+    description: Hasło konta "admin" przy pierwszym uruchomieniu (co najmniej 10 znaków). Trzeba je zmienić przy pierwszym logowaniu.
+  log_level:
+    name: Poziom logowania
+    description: Ile informacji aplikacja zapisuje w logu.
+network:
+  8099/tcp: Bezpośredni dostęp bez Home Assistant (opcjonalnie, zwykle pozostaw puste)

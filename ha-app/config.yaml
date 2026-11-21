@@ -1,0 +1,43 @@
+# Home Assistant App (formerly "add-on") definition – AR-11..15.
+# Before the first release replace OWNER with the GitHub account that publishes the images
+# (see .github/workflows/release.yml and docs/ha-release.md).
+name: SimpleInvoice Manager
+version: '0.7.0'
+slug: simpleinvoice
+description: Rechnungen schreiben, verwalten und als PDF erstellen – für Handwerksbetriebe.
+url: https://github.com/OWNER/simpleinvoice-manager
+arch:
+  - amd64
+  - aarch64
+# Prebuilt multi-arch images from the release workflow; the Supervisor pulls instead of building.
+image: ghcr.io/OWNER/simpleinvoice-manager-{arch}
+startup: application
+boot: auto
+init: true
+
+# AR-13: reached through Home Assistant Ingress (sidebar panel), behind the HA login.
+ingress: true
+ingress_port: 8099
+panel_icon: mdi:file-document-edit-outline
+panel_title: Rechnungen
+
+# AR-14: optional direct access without Ingress – disabled by default (no host port).
+ports:
+  8099/tcp: null
+ports_description:
+  8099/tcp: Direkter Zugriff ohne Home Assistant (optional, normalerweise leer lassen)
+
+# AR-12: needs the official MariaDB app; credentials come from the Supervisor services API.
+services:
+  - mysql:need
+
+watchdog: http://[HOST]:[PORT:8099]/api/health
+
+options:
+  database: simpleinvoice
+  initial_admin_password: ''
+  log_level: info
+schema:
+  database: match(^[A-Za-z0-9_]{1,64}$)
+  initial_admin_password: password?
+  log_level: list(trace|debug|info|warn|error|fatal)

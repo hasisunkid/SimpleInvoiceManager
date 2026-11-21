@@ -4,7 +4,7 @@ Small web app for tradespeople (Handwerker) to write, manage and track invoices 
 smartphone. Runs as a **Home Assistant App** on top of the HA MariaDB app, or standalone with
 Docker Compose. Requirements: [.claude/REQUIREMENTS.md](.claude/REQUIREMENTS.md).
 
-**Status:** milestones **M0–M6** done (see [Milestones](#milestones)).
+**Status:** milestones **M0–M7** done (see [Milestones](#milestones)).
 
 ## Quick start (Docker Compose)
 
@@ -16,6 +16,17 @@ docker compose --profile tools up -d adminer   # optional DB UI on http://localh
 ```
 
 Defaults are for local use only; override them in a `.env` file (see [.env.example](.env.example)).
+
+## Home Assistant installation
+
+1. Install and start the official **MariaDB** app.
+2. Settings → Apps → App store → ⋮ → **Repositories** → add this repository's GitHub URL.
+3. Install **SimpleInvoice Manager**, set `initial_admin_password`, start it and open
+   **Rechnungen** in the sidebar.
+4. **Backups:** invoice data lives in the MariaDB app – always back up both apps.
+
+Details for users: [ha-app/DOCS.md](ha-app/DOCS.md). Publishing images and the acceptance test
+on HA OS: [docs/ha-release.md](docs/ha-release.md).
 
 ## Development
 
@@ -68,7 +79,9 @@ apps/backend      Fastify 5 API, Knex migrations, PDF renderer (pdfmake) – ser
 apps/frontend     Vue 3 + Vite SPA, mobile-first, hash routing, relative URLs (Ingress)
 packages/domain   Pure TypeScript: invoice calculation, money (integer cents), dates, IBAN/tax IDs, numbering
 packages/i18n     de / pl / en translations for UI and PDF (German = reference shape)
-docker/           Multi-stage Dockerfile (amd64 + arm64)
+docker/           Multi-stage Dockerfile (targets runtime and ha; amd64 + arm64)
+ha-app/           Home Assistant App: config.yaml, run.sh, DOCS.md, icon, translations
+e2e/              Playwright tests (phone, desktop, ingress path)
 docs/adr/         Architecture decision records
 ```
 
@@ -87,17 +100,20 @@ Design decisions: [docs/adr/](docs/adr/).
 
 ## Milestones
 
-| #   | Milestone                    | Status  |
-| --- | ---------------------------- | ------- |
-| M0  | Skeleton                     | ✅ done |
-| M1  | Auth & users                 | ✅ done |
-| M2  | Company, style, numbering    | ✅ done |
-| M3  | Customers & catalogue        | ✅ done |
-| M4  | Invoice editor & calculation | ✅ done |
-| M5  | PDF                          | ✅ done |
-| M6  | Lifecycle & overview (+ E2E) | ✅ done |
-| M7  | Home Assistant App           | next    |
-| M8  | Hardening                    |         |
+| #   | Milestone                    | Status   |
+| --- | ---------------------------- | -------- |
+| M0  | Skeleton                     | ✅ done  |
+| M1  | Auth & users                 | ✅ done  |
+| M2  | Company, style, numbering    | ✅ done  |
+| M3  | Customers & catalogue        | ✅ done  |
+| M4  | Invoice editor & calculation | ✅ done  |
+| M5  | PDF                          | ✅ done  |
+| M6  | Lifecycle & overview (+ E2E) | ✅ done  |
+| M7  | Home Assistant App           | ✅ done¹ |
+| M8  | Hardening                    | next     |
+
+¹ Verified in a local HA simulation; installation on real HA OS (amd64 + aarch64) is the
+acceptance step in [docs/ha-release.md](docs/ha-release.md).
 
 ### M0 demo note
 
@@ -188,3 +204,14 @@ one printed once in the log) and forces a password change at first login. Afterw
   viewport, on desktop and behind an ingress-like base path (15 tests: login, customer, invoice
   from catalogue, preview, finalize, PDF download, mark paid, quick-create, admin creates user,
   logo upload).
+
+### M7 demo note
+
+- `ha-app/` is a complete Home Assistant App: Ingress panel "Rechnungen", MariaDB via the
+  Supervisor services API with the app's own database, options for database name, initial admin
+  password and log level (translated de/en/pl), optional direct port, watchdog, icon and logo.
+- `docker build -f docker/Dockerfile --target ha .` builds the app image (amd64 and arm64); the
+  release workflow publishes both to GHCR on a version tag.
+- Simulated locally with MariaDB and a fake Supervisor: the E2E ingress suite passes against the
+  HA-mode container, the `homeassistant` database stays untouched, sessions and files survive
+  restarts, missing MariaDB / reserved names stop with clear messages.

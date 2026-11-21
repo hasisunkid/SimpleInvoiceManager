@@ -116,8 +116,14 @@ async function clickText(wrapper: VueWrapper, text: string) {
   await flushPromises();
 }
 
-beforeEach(() => vi.resetModules());
+beforeEach(() => {
+  vi.resetModules();
+  // Auto-save is debounced (800 ms): with fake timers, time only moves when the test (or
+  // vi.waitFor) advances it – so slow CI machines cannot trigger a save in the middle of typing.
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+});
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   document.body.innerHTML = '';
@@ -256,7 +262,7 @@ describe('invoice editor (FR-INV-01..06, NFR-UX-02)', () => {
     expect(wrapper.findAll('button').some((b) => b.text() === 'Freie Position')).toBe(false);
     // Disabled through the surrounding <fieldset disabled>.
     expect(wrapper.find('#inv-subject').element.matches(':disabled')).toBe(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await vi.advanceTimersByTimeAsync(2000);
     expect(puts(fetch)).toHaveLength(0);
   });
 

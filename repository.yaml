@@ -1,0 +1,5 @@
+# Home Assistant App repository – add this repository's URL under
+# Settings → Apps → App store → ⋮ → Repositories.
+name: SimpleInvoice Manager
+url: https://github.com/OWNER/simpleinvoice-manager
+maintainer: OWNER

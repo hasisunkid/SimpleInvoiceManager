@@ -27,6 +27,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
+      target: runtime
     image: simpleinvoice-manager:dev
     restart: unless-stopped
     depends_on:

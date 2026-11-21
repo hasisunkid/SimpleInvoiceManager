@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="250" height="100" viewBox="0 0 250 100">
+  <rect x="6" y="14" width="72" height="72" rx="14" fill="#3A7CA5"/>
+  <path d="M26 24h24l10 10v42H26z" fill="#fff"/>
+  <rect x="32" y="44" width="22" height="4" rx="2" fill="#3A7CA5"/>
+  <rect x="32" y="53" width="16" height="4" rx="2" fill="#9bbfd6"/>
+  <rect x="32" y="62" width="22" height="5" rx="2" fill="#2c6184"/>
+  <text x="90" y="47" font-family="Roboto" font-size="24" font-weight="bold" fill="#2c6184">SimpleInvoice</text>
+  <text x="90" y="74" font-family="Roboto" font-size="20" fill="#3A7CA5">Manager</text>
+</svg>

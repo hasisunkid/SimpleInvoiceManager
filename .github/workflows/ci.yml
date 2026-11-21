@@ -28,6 +28,17 @@ jobs:
       # Integration tests start MariaDB via Testcontainers (Docker is available on the runner).
       - run: npm run test:coverage
 
+  ha-app:
+    name: Home Assistant App lint (AR-11)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: frenck/action-addon-linter@v2
+        with:
+          path: ./ha-app
+      - name: shellcheck run.sh
+        run: shellcheck ha-app/run.sh
+
   container:
     name: Image build (amd64 + arm64) and compose smoke test
     runs-on: ubuntu-latest
@@ -41,6 +52,7 @@ jobs:
         with:
           context: .
           file: docker/Dockerfile
+          target: ha
           platforms: linux/amd64,linux/arm64
           push: false
           cache-from: type=gha

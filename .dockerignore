@@ -9,6 +9,7 @@
 .env
 docs
 e2e
-ha-app
+ha-app/*
+!ha-app/run.sh
 test-results
 playwright-report
