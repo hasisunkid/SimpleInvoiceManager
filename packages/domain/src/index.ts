@@ -4,3 +4,6 @@ export * from './account.js';
 export * from './bank.js';
 export * from './company.js';
 export * from './numbering.js';
+export * from './units.js';
+export * from './customer.js';
+export * from './catalog.js';

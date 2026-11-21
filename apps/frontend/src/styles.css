@@ -254,7 +254,7 @@ input[aria-invalid='true'] {
   text-decoration: none;
 }
 
-.tabbar__item.router-link-active {
+.tabbar__item--active {
   color: var(--accent-strong);
   box-shadow: inset 0 3px 0 var(--accent);
 }
@@ -596,4 +596,60 @@ textarea[aria-invalid='true'] {
 .example__value {
   font-size: 1.5rem;
   letter-spacing: 0.02em;
+}
+
+/* ---------- M3 ---------- */
+.money {
+  position: relative;
+}
+
+.money input {
+  padding-right: 2rem;
+  text-align: right;
+}
+
+.money__unit {
+  position: absolute;
+  top: 50%;
+  right: 0.75rem;
+  transform: translateY(-50%);
+  color: var(--muted);
+}
+
+.list__button {
+  width: 100%;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.picker__results {
+  max-height: 22rem;
+  overflow-y: auto;
+}
+
+.picker__selected {
+  display: grid;
+  gap: 0.125rem;
+  padding: 0.75rem 1rem;
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.picker__selected .link-button {
+  justify-self: start;
+  padding: 0;
+}
+
+input[type='search'] {
+  -webkit-appearance: none;
+  appearance: none;
 }

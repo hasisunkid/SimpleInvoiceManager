@@ -4,7 +4,7 @@ Small web app for tradespeople (Handwerker) to write, manage and track invoices 
 smartphone. Runs as a **Home Assistant App** on top of the HA MariaDB app, or standalone with
 Docker Compose. Requirements: [.claude/REQUIREMENTS.md](.claude/REQUIREMENTS.md).
 
-**Status:** milestones **M0–M2** done (see [Milestones](#milestones)).
+**Status:** milestones **M0–M3** done (see [Milestones](#milestones)).
 
 ## Quick start (Docker Compose)
 
@@ -58,7 +58,7 @@ The app is configured **only** through environment variables. In Home Assistant 
 | `INITIAL_ADMIN_PASSWORD`  | random          | First-start password of `admin`; random one is logged once  |
 | `PORT`                    | `8099`          | HTTP port                                                   |
 | `LOG_LEVEL`               | `info`          | `fatal` … `trace`, `silent`                                 |
-| `SEED_DEMO`               | `false`         | Seed demo data (M3+)                                        |
+| `SEED_DEMO`               | `false`         | Demo customers/catalogue for an empty installation          |
 
 ## Architecture
 
@@ -91,8 +91,8 @@ Design decisions: [docs/adr/](docs/adr/).
 | M0  | Skeleton                     | ✅ done |
 | M1  | Auth & users                 | ✅ done |
 | M2  | Company, style, numbering    | ✅ done |
-| M3  | Customers & catalogue        | next    |
-| M4  | Invoice editor & calculation |         |
+| M3  | Customers & catalogue        | ✅ done |
+| M4  | Invoice editor & calculation | next    |
 | M5  | PDF                          |         |
 | M6  | Lifecycle & overview (+ E2E) |         |
 | M7  | Home Assistant App           |         |
@@ -130,3 +130,16 @@ one printed once in the log) and forces a password change at first login. Afterw
   optional prefix with `{YYYY}`, zero padding and yearly restart, with a live example. Numbers
   are only assigned when an invoice is finalized (M5) – 25 parallel finalizations get 25
   consecutive numbers without gaps (TR-03).
+
+### M3 demo note
+
+- Bottom bar: **Start · Kunden · Leistungen · Mehr** (company, profile and admin settings are
+  under "Mehr").
+- **Kunden**: search as you type over name, company, contact person and city – case- and
+  accent-insensitive ("lukasz" finds "Łukasz"). Business or private customers, invoice
+  language per customer, archive / restore; delete is refused once invoices exist.
+- **Leistungen**: catalogue of work and material positions with unit (Std., Stk., m, m², m³,
+  kg, pauschal), net price and VAT rate; inactive items are hidden from the selection.
+- The customer picker with quick create (name + address) is ready for the invoice editor (M4).
+- `docker compose up` with `SEED_DEMO=true` adds three demo customers and five catalogue items
+  to an empty installation.

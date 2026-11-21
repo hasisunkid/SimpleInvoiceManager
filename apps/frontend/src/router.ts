@@ -7,6 +7,8 @@ declare module 'vue-router' {
     public?: boolean;
     /** Requires the ADMIN role (FR-AUTH-02). */
     admin?: boolean;
+    /** Bottom-bar tab that is highlighted for this screen. */
+    tab?: 'home' | 'customers' | 'catalog' | 'more';
   }
 }
 
@@ -18,7 +20,12 @@ export function createAppRouter(): Router {
   const router = createRouter({
     history: createWebHashHistory(),
     routes: [
-      { path: '/', name: 'home', component: () => import('./views/HomeView.vue') },
+      {
+        path: '/',
+        name: 'home',
+        component: () => import('./views/HomeView.vue'),
+        meta: { tab: 'home' },
+      },
       {
         path: '/login',
         name: 'login',
@@ -30,44 +37,101 @@ export function createAppRouter(): Router {
         name: 'change-password',
         component: () => import('./views/ChangePasswordView.vue'),
       },
-      { path: '/profile', name: 'profile', component: () => import('./views/ProfileView.vue') },
-      { path: '/company', name: 'company', component: () => import('./views/CompanyView.vue') },
+      // ----- customers (FR-CUST-*) -----
+      {
+        path: '/customers',
+        name: 'customers',
+        component: () => import('./views/CustomersView.vue'),
+        meta: { tab: 'customers' },
+      },
+      {
+        path: '/customers/new',
+        name: 'customer-new',
+        component: () => import('./views/CustomerFormView.vue'),
+        meta: { tab: 'customers' },
+      },
+      {
+        path: '/customers/:id(\\d+)',
+        name: 'customer-edit',
+        component: () => import('./views/CustomerFormView.vue'),
+        props: (route) => ({ id: Number(route.params.id) }),
+        meta: { tab: 'customers' },
+      },
+      // ----- catalogue (FR-CAT-*) -----
+      {
+        path: '/catalog',
+        name: 'catalog',
+        component: () => import('./views/CatalogView.vue'),
+        meta: { tab: 'catalog' },
+      },
+      {
+        path: '/catalog/new',
+        name: 'catalog-new',
+        component: () => import('./views/CatalogItemFormView.vue'),
+        meta: { tab: 'catalog' },
+      },
+      {
+        path: '/catalog/:id(\\d+)',
+        name: 'catalog-edit',
+        component: () => import('./views/CatalogItemFormView.vue'),
+        props: (route) => ({ id: Number(route.params.id) }),
+        meta: { tab: 'catalog' },
+      },
+      // ----- more -----
+      {
+        path: '/more',
+        name: 'more',
+        component: () => import('./views/MoreView.vue'),
+        meta: { tab: 'more' },
+      },
+      {
+        path: '/profile',
+        name: 'profile',
+        component: () => import('./views/ProfileView.vue'),
+        meta: { tab: 'more' },
+      },
+      {
+        path: '/company',
+        name: 'company',
+        component: () => import('./views/CompanyView.vue'),
+        meta: { tab: 'more' },
+      },
       {
         path: '/settings',
         name: 'settings',
         component: () => import('./views/SettingsView.vue'),
-        meta: { admin: true },
+        meta: { admin: true, tab: 'more' },
       },
       {
         path: '/settings/users',
         name: 'users',
         component: () => import('./views/UsersView.vue'),
-        meta: { admin: true },
+        meta: { admin: true, tab: 'more' },
       },
       {
         path: '/settings/users/new',
         name: 'user-new',
         component: () => import('./views/UserFormView.vue'),
-        meta: { admin: true },
+        meta: { admin: true, tab: 'more' },
       },
       {
         path: '/settings/users/:id(\\d+)',
         name: 'user-edit',
         component: () => import('./views/UserFormView.vue'),
         props: (route) => ({ id: Number(route.params.id) }),
-        meta: { admin: true },
+        meta: { admin: true, tab: 'more' },
       },
       {
         path: '/settings/style',
         name: 'style',
         component: () => import('./views/StyleView.vue'),
-        meta: { admin: true },
+        meta: { admin: true, tab: 'more' },
       },
       {
         path: '/settings/numbering',
         name: 'numbering',
         component: () => import('./views/NumberingView.vue'),
-        meta: { admin: true },
+        meta: { admin: true, tab: 'more' },
       },
       { path: '/:pathMatch(.*)*', redirect: '/' },
     ],

@@ -34,5 +34,10 @@ export default tseslint.config(
       'vue/multi-word-component-names': 'off',
     },
   },
+  {
+    // Edits the reactive form object owned by useCustomerForm() on purpose.
+    files: ['apps/frontend/src/components/CustomerFields.vue'],
+    rules: { 'vue/no-mutating-props': 'off' },
+  },
   prettier,
 );

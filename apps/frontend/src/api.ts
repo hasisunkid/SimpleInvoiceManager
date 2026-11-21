@@ -1,3 +1,4 @@
+import type { CatalogItemData, CustomerData } from '@sim/domain';
 import type { Language } from '@sim/i18n';
 
 /**
@@ -125,9 +126,29 @@ export const api = {
   post: <T>(path: string, body: unknown = {}) => request<T>('POST', path, { json: body }),
   put: <T>(path: string, body: unknown) => request<T>('PUT', path, { json: body }),
   patch: <T>(path: string, body: unknown) => request<T>('PATCH', path, { json: body }),
+  delete: (path: string) => request<void>('DELETE', path),
   /** Uploads a file as the raw request body (logo upload). */
   upload: <T>(path: string, file: Blob) => request<T>('POST', path, { raw: file }),
   /** POSTs JSON and returns the binary response, e.g. a PDF preview. */
   postForBlob: (path: string, body: unknown) =>
     request<Blob>('POST', path, { json: body, as: 'blob' }),
 };
+
+export interface Customer extends CustomerData {
+  id: number;
+  displayName: string;
+  archived: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CustomerPage {
+  items: Customer[];
+  total: number;
+}
+
+export interface CatalogItem extends CatalogItemData {
+  id: number;
+  createdAt: string;
+  updatedAt: string;
+}

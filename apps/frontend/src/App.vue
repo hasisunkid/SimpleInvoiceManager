@@ -1,15 +1,22 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { RouterLink, RouterView, useRouter } from 'vue-router';
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { logout, session } from './session';
 
 const { t } = useI18n();
 const router = useRouter();
+const route = useRoute();
+
+const tabs = [
+  { name: 'home', label: 'nav.home' },
+  { name: 'customers', label: 'nav.customers' },
+  { name: 'catalog', label: 'nav.catalog' },
+  { name: 'more', label: 'nav.more' },
+] as const;
 
 /** Navigation only for fully logged-in users (not during the forced password change). */
 const showNav = computed(() => session.user !== null && !session.user.mustChangePassword);
-const isAdmin = computed(() => session.user?.role === 'ADMIN');
 
 async function signOut(): Promise<void> {
   await logout().catch(() => {});
@@ -29,15 +36,15 @@ async function signOut(): Promise<void> {
     <RouterView />
 
     <nav v-if="showNav" class="tabbar" :aria-label="t('nav.main')">
-      <RouterLink :to="{ name: 'home' }" class="tabbar__item">{{ t('nav.home') }}</RouterLink>
-      <RouterLink :to="{ name: 'company' }" class="tabbar__item">
-        {{ t('nav.company') }}
-      </RouterLink>
-      <RouterLink v-if="isAdmin" :to="{ name: 'settings' }" class="tabbar__item">
-        {{ t('nav.settings') }}
-      </RouterLink>
-      <RouterLink :to="{ name: 'profile' }" class="tabbar__item">
-        {{ t('nav.profile') }}
+      <RouterLink
+        v-for="tab in tabs"
+        :key="tab.name"
+        :to="{ name: tab.name }"
+        class="tabbar__item"
+        :class="{ 'tabbar__item--active': route.meta.tab === tab.name }"
+        :aria-current="route.meta.tab === tab.name ? 'page' : undefined"
+      >
+        {{ t(tab.label) }}
       </RouterLink>
     </nav>
   </div>
