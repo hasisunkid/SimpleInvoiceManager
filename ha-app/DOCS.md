@@ -15,7 +15,7 @@ as PDF in German, Polish or English and look like classic printed invoices.
    SimpleInvoice Manager creates its **own database** there (default `simpleinvoice`); it never
    touches the `homeassistant` database used by the recorder.
 2. Add this repository: Settings → Apps → App store → ⋮ → **Repositories** →
-   `https://github.com/OWNER/simpleinvoice-manager`.
+   `https://github.com/hasisunkid/SimpleInvoiceManager`.
 3. Install **SimpleInvoice Manager**.
 4. On the **Configuration** tab, set `initial_admin_password` (at least 10 characters).
 5. Start the app and open it with **Rechnungen** in the sidebar (or "Open web UI").
@@ -80,4 +80,4 @@ viewer and can be shared from there (e-mail, messenger).
 
 ## Support
 
-Issues and questions: https://github.com/OWNER/simpleinvoice-manager/issues
+Issues and questions: https://github.com/hasisunkid/SimpleInvoiceManager/issues

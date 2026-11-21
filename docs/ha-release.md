@@ -2,10 +2,10 @@
 
 ## One-time setup
 
-1. Push this repository to GitHub (public, so Home Assistant can read `repository.yaml` and pull
-   the images anonymously).
-2. Replace `OWNER` with the GitHub account in `ha-app/config.yaml` (`url`, `image`),
-   `repository.yaml` and `ha-app/DOCS.md`.
+1. The repository is https://github.com/hasisunkid/SimpleInvoiceManager. It must be **public**,
+   so Home Assistant can read `repository.yaml` and pull the images anonymously.
+2. Images: `ghcr.io/hasisunkid/simpleinvoice-manager-{amd64,aarch64}` (set in
+   `ha-app/config.yaml`; the release workflow derives the owner from the repository).
 3. After the first release, open the two packages on GitHub
    (`simpleinvoice-manager-amd64`, `simpleinvoice-manager-aarch64`) → Package settings →
    **Change visibility → Public**. Otherwise the Supervisor cannot pull them.

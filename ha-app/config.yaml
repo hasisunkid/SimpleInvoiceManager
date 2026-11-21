@@ -1,16 +1,16 @@
 # Home Assistant App (formerly "add-on") definition – AR-11..15.
-# Before the first release replace OWNER with the GitHub account that publishes the images
-# (see .github/workflows/release.yml and docs/ha-release.md).
+# Images are published by .github/workflows/release.yml (see docs/ha-release.md).
+# GHCR image names are lowercase: ghcr.io/hasisunkid/simpleinvoice-manager-<arch>.
 name: SimpleInvoice Manager
 version: '0.7.0'
 slug: simpleinvoice
 description: Rechnungen schreiben, verwalten und als PDF erstellen – für Handwerksbetriebe.
-url: https://github.com/OWNER/simpleinvoice-manager
+url: https://github.com/hasisunkid/SimpleInvoiceManager
 arch:
   - amd64
   - aarch64
 # Prebuilt multi-arch images from the release workflow; the Supervisor pulls instead of building.
-image: ghcr.io/OWNER/simpleinvoice-manager-{arch}
+image: ghcr.io/hasisunkid/simpleinvoice-manager-{arch}
 startup: application
 boot: auto
 init: true
