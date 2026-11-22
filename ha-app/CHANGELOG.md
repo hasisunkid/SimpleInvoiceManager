@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.0
+
+### Minor Changes
+
+- [`6575be6`](https://github.com/hasisunkid/SimpleInvoiceManager/commit/6575be6e1069154752fc5b0764cf9276e4502d4b) Thanks [@hasisunkid](https://github.com/hasisunkid)! - The app now shows its version on the login screen and on the _Mehr_ page, with a link to the
+  release notes of that version. Release notes like these are now published with every update.
+
 ## 0.7.0 – first Home Assistant App release
 
 - Runs as a Home Assistant App with Ingress (sidebar panel "Rechnungen"), uses the official

@@ -2,7 +2,7 @@
 # Images are published by .github/workflows/release.yml (see docs/ha-release.md).
 # GHCR image names are lowercase: ghcr.io/hasisunkid/simpleinvoice-manager-<arch>.
 name: SimpleInvoice Manager
-version: '0.7.0'
+version: '0.8.0'
 slug: simpleinvoice
 description: Rechnungen schreiben, verwalten und als PDF erstellen – für Handwerksbetriebe.
 url: https://github.com/hasisunkid/SimpleInvoiceManager
