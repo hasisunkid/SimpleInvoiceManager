@@ -41,6 +41,8 @@ and printed **once** in the app's **Log** tab.
 | `database`               | `simpleinvoice` | Name of the app's own database in MariaDB. `homeassistant` is refused. |
 | `initial_admin_password` | –               | Password of `admin` on the very first start only (min. 10 characters). |
 | `log_level`              | `info`          | `trace`, `debug`, `info`, `warn`, `error` or `fatal`.                  |
+| `mcp_enabled`            | `false`         | AI assistants may create invoice drafts (see below).                   |
+| `public_url`             | –               | Optional address of the app, used in links for AI assistants.          |
 
 Changing `initial_admin_password` later has no effect – users and passwords are managed inside
 the app.
@@ -51,6 +53,31 @@ Normally the app is used through Home Assistant (Ingress), so you log in to Home
 to the app. On the **Network** tab you can additionally publish port `8099` to reach the app
 directly at `http://<home-assistant>:8099/` – only do this inside your home network or behind
 your own HTTPS reverse proxy.
+
+## AI assistants (MCP, optional)
+
+An AI assistant such as Claude can write **invoice drafts** for you: _"Write an invoice to
+Omicronservice: 3 hours plastering at 48 €, material lump sum 640 €"_. The assistant reuses
+existing customers and catalogue entries when a similar one exists and creates new ones only
+otherwise; everything it creates is marked **"Von KI erstellt"**. It can **never** finalize an
+invoice, assign a number, mark it paid or cancel it – you check the draft in the app and create
+the PDF yourself.
+
+1. On the **Configuration** tab, switch on `mcp_enabled` (and optionally set `public_url` to the
+   address you open the app with, so the assistant can link to the draft).
+2. On the **Network** tab, publish port `8099`. AI assistants cannot log in to Home Assistant,
+   so they use the direct port. Only do this in your home network or behind your own HTTPS
+   reverse proxy / tunnel.
+3. Restart the app. In the app, open **Mehr → Mein Profil → KI-Zugänge**, create an access key
+   and copy it (it is shown once).
+4. In your assistant, add an MCP server of type **Streamable HTTP** with the URL
+   `http://<home-assistant>:8099/mcp` (or your HTTPS address + `/mcp`) and the header
+   `Authorization: Bearer <access key>`. For Claude Code, for example:
+   `claude mcp add --transport http rechnungen https://<your-address>/mcp --header "Authorization: Bearer <access key>"`
+
+Keys can be revoked in the profile at any time; admins see and revoke all keys under
+**Mehr → Verwaltung → KI-Zugänge**. Lists of invoices, customers and catalogue entries have a
+filter "Von KI erstellt"; saving a record or tapping **Geprüft** removes the mark.
 
 ## Backups – important
 

@@ -106,3 +106,37 @@ export function parseQuantity(input: string): number | null {
   if (!m) return null;
   return Number(m[1]) * 1000 + Number((m[2] ?? '').padEnd(3, '0'));
 }
+
+/**
+ * FR-MCP-09: machine input (MCP tools) uses plain decimal strings with "." – "1755.00",
+ * "48", "0.5" – never floating point numbers. Stricter than parseMoney: no thousands
+ * separators, at most two decimals, no sign. Returns null if invalid.
+ */
+export function parseDecimalAmount(input: string): Cents | null {
+  const m = /^(\d{1,8})(?:\.(\d{1,2}))?$/.exec(input.trim());
+  if (!m) return null;
+  return cents(Number(m[1]) * 100 + Number((m[2] ?? '').padEnd(2, '0')));
+}
+
+/** FR-MCP-09: decimal string with "." and up to three decimals ("2.5", "0.125") → thousandths. */
+export function parseDecimalQuantity(input: string): number | null {
+  const m = /^(\d{1,9})(?:\.(\d{1,3}))?$/.exec(input.trim());
+  if (!m) return null;
+  return Number(m[1]) * 1000 + Number((m[2] ?? '').padEnd(3, '0'));
+}
+
+/** Inverse of parseDecimalAmount for machine output: 175500 → "1755.00". */
+export function formatDecimalAmount(amount: Cents | number): string {
+  const negative = amount < 0;
+  const abs = Math.abs(amount);
+  const text = `${Math.trunc(abs / 100)}.${String(abs % 100).padStart(2, '0')}`;
+  return negative ? `-${text}` : text;
+}
+
+/** Inverse of parseDecimalQuantity: 2500 → "2.5", 1000 → "1". */
+export function formatDecimalQuantity(milli: number): string {
+  const frac = String(milli % 1000)
+    .padStart(3, '0')
+    .replace(/0+$/, '');
+  return frac ? `${Math.trunc(milli / 1000)}.${frac}` : String(Math.trunc(milli / 1000));
+}

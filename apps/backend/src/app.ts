@@ -28,6 +28,8 @@ import { settingsRoutes } from './routes/settings.js';
 import { healthRoutes } from './routes/health.js';
 import { meRoutes } from './routes/me.js';
 import { userRoutes } from './routes/users.js';
+import { tokenRoutes } from './routes/tokens.js';
+import { registerMcp } from './mcp/plugin.js';
 
 export interface RouteInfo {
   method: string;
@@ -133,12 +135,16 @@ export async function buildApp({
       await api.register(invoiceRoutes, { db, files, renderer });
       await api.register(adminRoutes, { db, files });
       await api.register(settingsRoutes, { db, files, renderer });
+      await api.register(tokenRoutes, { db, mcpEnabled: config.mcpEnabled });
       api.get('/openapi.json', { config: { public: true }, schema: { hide: true } }, async () =>
         app.swagger(),
       );
     },
     { prefix: '/api' },
   );
+
+  // FR-MCP-12: the MCP server exists only when switched on (app option `mcp_enabled`).
+  if (config.mcpEnabled) await registerMcp(app, { db, config });
 
   if (existsSync(config.frontendDir)) {
     await app.register(fastifyStatic, {

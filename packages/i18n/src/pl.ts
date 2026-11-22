@@ -51,6 +51,8 @@ export const pl: Messages = {
     serverUnreachable: 'Serwer jest niedostępny. Spróbuj ponownie później.',
   },
   errors: {
+    TOKEN_NOT_FOUND: 'Ten dostęp już nie istnieje.',
+    TOKEN_NAME_REQUIRED: 'Podaj nazwę dostępu.',
     INVALID_CREDENTIALS: 'Nieprawidłowa nazwa użytkownika lub hasło.',
     TOO_MANY_ATTEMPTS: 'Zbyt wiele nieudanych prób. Spróbuj ponownie za {seconds} s.',
     UNAUTHENTICATED: 'Zaloguj się ponownie.',
@@ -122,6 +124,41 @@ export const pl: Messages = {
   home: {
     welcome: 'Cześć, {name}!',
     comingSoon: 'Faktury, klienci i usługi pojawią się w kolejnych wersjach.',
+  },
+  ai: {
+    badge: 'Utworzone przez AI',
+    filter: 'Tylko „Utworzone przez AI”',
+    notice:
+      'Utworzone przez asystenta AI. Sprawdź – zapisanie lub „Sprawdzone” usuwa tę informację.',
+    reviewed: 'Sprawdzone',
+  },
+  tokens: {
+    title: 'Dostępy dla AI',
+    hint: 'Dzięki osobistemu dostępowi asystent AI (np. Claude) może tworzyć dla Ciebie projekty faktur. Nigdy nie może ich wystawić, oznaczyć jako zapłacone ani anulować – to zawsze robisz Ty.',
+    disabled:
+      'Interfejs AI jest wyłączony. Administrator może go włączyć w konfiguracji aplikacji (opcja „mcp_enabled”).',
+    name: 'Nazwa dostępu',
+    namePlaceholder: 'np. Claude na laptopie',
+    expiry: 'Ważność',
+    expiryNever: 'Do odwołania',
+    expiryDays: '{days} dni',
+    create: 'Utwórz dostęp',
+    created: 'Dostęp utworzony. Skopiuj klucz teraz – zostanie pokazany tylko ten jeden raz.',
+    secret: 'Klucz',
+    copy: 'Kopiuj',
+    copied: 'Skopiowano.',
+    address: 'Adres dla asystenta AI',
+    addressIngress:
+      'Asystent AI nie łączy się przez Home Assistant, tylko przez bezpośredni port: http://<Home-Assistant>:8099/mcp (tylko w sieci domowej lub przez HTTPS).',
+    empty: 'Brak dostępów.',
+    lastUsed: 'Ostatnio użyty {date}',
+    neverUsed: 'Jeszcze nie używany',
+    expires: 'Ważny do {date}',
+    revoke: 'Odwołaj',
+    revokeConfirm: 'Odwołać dostęp „{name}”? Asystent AI nie będzie mógł go już używać.',
+    revoked: 'Odwołany',
+    expired: 'Wygasł',
+    owner: 'Użytkownik: {name}',
   },
   profile: {
     title: 'Mój profil',
@@ -220,6 +257,8 @@ export const pl: Messages = {
     numberingHint: 'Numer początkowy i format',
     export: 'Kopia zapasowa',
     exportHint: 'Pobierz wszystkie dane i pliki PDF',
+    tokens: 'Dostępy dla AI',
+    tokensHint: 'Przeglądaj i odwołuj dostępy wszystkich użytkowników',
   },
   style: {
     title: 'Wygląd faktury',

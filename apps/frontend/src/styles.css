@@ -967,3 +967,37 @@ input[type='search'] {
 .history li {
   display: grid;
 }
+
+/* ---------- AI-created marker (M9, FR-MCP-10) ---------- */
+.badge--ai {
+  background: #efe8f7;
+  color: #4f2a78;
+}
+
+.notice--ai {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  background: #efe8f7;
+  color: #4f2a78;
+}
+
+.notice--ai p {
+  flex: 1 1 14rem;
+  margin: 0;
+}
+
+.notice--ai button {
+  margin-top: 0;
+}
+
+.token-secret {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+  background: var(--bg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}

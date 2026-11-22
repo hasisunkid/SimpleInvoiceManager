@@ -3,7 +3,7 @@ import vue from '@vitejs/plugin-vue';
 
 export default defineProject({
   plugins: [vue()],
-  resolve: { conditions: ['source'] },
+  resolve: { conditions: ['sim-source'] },
   test: {
     name: 'frontend',
     include: ['test/**/*.test.ts'],

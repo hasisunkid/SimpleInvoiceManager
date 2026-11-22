@@ -4,7 +4,7 @@ Small web app for tradespeople (Handwerker) to write, manage and track invoices 
 smartphone. Runs as a **Home Assistant App** on top of the HA MariaDB app, or standalone with
 Docker Compose. Requirements: [.claude/REQUIREMENTS.md](.claude/REQUIREMENTS.md).
 
-**Status:** milestones **M0–M8** and **M10** (release notes) done, **M9** (MCP server) next –
+**Status:** milestones **M0–M10** done (M9 awaiting the manual acceptance with an AI client) –
 see [Milestones](#milestones).
 
 ## Features
@@ -19,6 +19,9 @@ see [Milestones](#milestones).
   share or download on the phone
 - Status tracking (open, overdue, paid, cancelled) with history, dashboard and filtered lists
 - Data backup: all data as JSON, all PDFs as ZIP
+- AI assistants (MCP, optional): dictate an invoice to Claude & co. – it creates a **draft**,
+  reusing similar customers and catalogue entries; everything it creates is marked
+  "Von KI erstellt" until a person checks it
 - Runs as a Home Assistant App (Ingress, MariaDB app) or standalone with Docker Compose
 
 ## Quick start (Docker Compose)
@@ -90,6 +93,8 @@ The app is configured **only** through environment variables. In Home Assistant 
 | `LOG_LEVEL`               | `info`          | `fatal` … `trace`, `silent`                                 |
 | `SEED_DEMO`               | `false`         | Demo customers/catalogue for an empty installation          |
 | `APP_VERSION`             | `dev`           | Set by the image build (`BUILD_VERSION`), shown in the UI   |
+| `MCP_ENABLED`             | `false`         | MCP server for AI assistants at `POST /mcp` (FR-MCP-12)     |
+| `PUBLIC_URL`              | –               | App address used in links returned to AI assistants         |
 
 ## Architecture
 
@@ -141,13 +146,16 @@ Design decisions: [docs/adr/](docs/adr/).
 | M6  | Lifecycle & overview (+ E2E) | ✅ done  |
 | M7  | Home Assistant App           | ✅ done¹ |
 | M8  | Hardening                    | ✅ done  |
-| M9  | MCP server (v1.1)            | next     |
+| M9  | MCP server (v1.1)            | ✅ done³ |
 | M10 | Release notes (Changesets)   | ✅ done² |
 
 ¹ Verified in a local HA simulation; installation on real HA OS (amd64 + aarch64) is the
 acceptance step in [docs/ha-release.md](docs/ha-release.md).
-² TR-21 (one real release through the whole flow) happens with the first merge of the
-"Version Packages" pull request.
+² TR-21 done with release v0.8.0 (Version PR → tag → images → GitHub Release); the Home
+Assistant update check is the last manual step.
+³ TR-MCP-01 is automated; TR-MCP-02 (the example flow with Claude Desktop / Claude Code, then a
+person finalizes the draft) is the product owner's acceptance – setup in
+[ha-app/DOCS.md](ha-app/DOCS.md#ai-assistants-mcp-optional).
 
 ### M0 demo note
 
@@ -271,3 +279,17 @@ one printed once in the log) and forces a password change at first login. Afterw
   Home Assistant shows). Merging it tags `vX.Y.Z`, publishes the images and a GitHub Release.
 - The running version is shown on the login screen and on _Mehr_ (linked to its release notes)
   and returned by `/api/health`; local builds show `dev`.
+
+### M9 demo note
+
+- _Mehr → Mein Profil → KI-Zugänge_: create a personal access key (shown once, revocable;
+  admins see all keys under _Verwaltung → KI-Zugänge_).
+- With `MCP_ENABLED=true`, an MCP client connects to `POST /mcp` (Streamable HTTP) with
+  `Authorization: Bearer <key>`, e.g.
+  `claude mcp add --transport http rechnungen http://localhost:8099/mcp --header "Authorization: Bearer sim_…"`.
+- "Write an invoice to omicron service: 3 h plastering at 48 €, material lump sum 640 €" →
+  the existing "Omicronservice GmbH" and the catalogue entry "Material" are reused, a new
+  entry "Putzarbeiten" is created – draft with 932,96 € incl. 19 % VAT and a link to open it.
+- Lists of invoices, customers and catalogue show "Von KI erstellt" with a filter; saving or
+  "Geprüft" removes the mark. The assistant has no tool to finalize, pay or cancel – and its
+  draft tools refuse finalized invoices.

@@ -55,6 +55,8 @@ export const de = {
     serverUnreachable: 'Der Server ist nicht erreichbar. Bitte später erneut versuchen.',
   },
   errors: {
+    TOKEN_NOT_FOUND: 'Dieser Zugang existiert nicht mehr.',
+    TOKEN_NAME_REQUIRED: 'Bitte einen Namen für den Zugang angeben.',
     INVALID_CREDENTIALS: 'Benutzername oder Passwort ist falsch.',
     TOO_MANY_ATTEMPTS: 'Zu viele Fehlversuche. Bitte in {seconds} Sekunden erneut versuchen.',
     UNAUTHENTICATED: 'Bitte melden Sie sich erneut an.',
@@ -130,6 +132,43 @@ export const de = {
   home: {
     welcome: 'Hallo {name}!',
     comingSoon: 'Rechnungen, Kunden und Leistungen kommen mit den nächsten Versionen.',
+  },
+  ai: {
+    badge: 'Von KI erstellt',
+    filter: 'Nur „Von KI erstellt“',
+    notice:
+      'Von einem KI-Assistenten angelegt. Bitte prüfen – Speichern oder „Geprüft“ entfernt diesen Hinweis.',
+    reviewed: 'Geprüft',
+  },
+  tokens: {
+    title: 'KI-Zugänge',
+    hint: 'Mit einem persönlichen Zugang kann ein KI-Assistent (z. B. Claude) Rechnungsentwürfe für Sie anlegen. Fertigstellen, als bezahlt markieren oder stornieren kann er nie – das machen immer Sie.',
+    disabled:
+      'Die KI-Schnittstelle ist ausgeschaltet. Ein Administrator kann sie in der Konfiguration der App einschalten (Option „mcp_enabled“).',
+    name: 'Name des Zugangs',
+    namePlaceholder: 'z. B. Claude auf dem Laptop',
+    expiry: 'Gültigkeit',
+    expiryNever: 'Bis zum Widerruf',
+    expiryDays: '{days} Tage',
+    create: 'Zugang erstellen',
+    created:
+      'Zugang erstellt. Kopieren Sie den Schlüssel jetzt – er wird nur dieses eine Mal angezeigt.',
+    secret: 'Schlüssel',
+    copy: 'Kopieren',
+    copied: 'Kopiert.',
+    address: 'Adresse für den KI-Assistenten',
+    addressIngress:
+      'Der KI-Assistent erreicht die App nicht über Home Assistant, sondern über den direkten Port: http://<Home-Assistant>:8099/mcp (bitte nur im Heimnetz oder hinter HTTPS).',
+    empty: 'Noch keine Zugänge.',
+    lastUsed: 'Zuletzt benutzt am {date}',
+    neverUsed: 'Noch nie benutzt',
+    expires: 'Gültig bis {date}',
+    revoke: 'Widerrufen',
+    revokeConfirm:
+      'Zugang „{name}“ widerrufen? Der KI-Assistent kann ihn danach nicht mehr verwenden.',
+    revoked: 'Widerrufen',
+    expired: 'Abgelaufen',
+    owner: 'Benutzer: {name}',
   },
   profile: {
     title: 'Mein Profil',
@@ -228,6 +267,8 @@ export const de = {
     numberingHint: 'Startnummer und Format',
     export: 'Datensicherung',
     exportHint: 'Alle Daten und PDFs herunterladen',
+    tokens: 'KI-Zugänge',
+    tokensHint: 'Zugänge aller Benutzer ansehen und widerrufen',
   },
   style: {
     title: 'Rechnungsdesign',

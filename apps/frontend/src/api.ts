@@ -179,6 +179,8 @@ export interface Customer extends CustomerData {
   id: number;
   displayName: string;
   archived: boolean;
+  /** FR-MCP-10: created by an AI assistant, not yet checked. */
+  aiCreated: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -190,6 +192,7 @@ export interface CustomerPage {
 
 export interface CatalogItem extends CatalogItemData {
   id: number;
+  aiCreated: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -212,6 +215,7 @@ export interface Invoice extends Omit<InvoiceDraftData, 'positions'> {
   totals: InvoiceTotals;
   finalizeProblems: (FinalizeProblem | 'NUMBERING_NOT_CONFIGURED')[];
   overdue: boolean;
+  aiCreated: boolean;
   paidAt: string | null;
   cancelReason: string | null;
   createdAt: string;
@@ -228,6 +232,7 @@ export interface InvoiceListItem {
   dueDate: string;
   grossCents: number;
   overdue: boolean;
+  aiCreated: boolean;
 }
 
 export interface InvoicePage {
@@ -249,4 +254,24 @@ export interface StatusHistoryEntry {
   at: string;
   userName: string | null;
   note: string | null;
+}
+
+/** FR-MCP-03: personal API token for AI assistants (the secret itself is never listed). */
+export interface ApiToken {
+  id: number;
+  userId: number;
+  userName: string;
+  name: string;
+  prefix: string;
+  scopes: string[];
+  expiresAt: string | null;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  active: boolean;
+}
+
+export interface ApiTokenList {
+  mcpEnabled: boolean;
+  items: ApiToken[];
 }

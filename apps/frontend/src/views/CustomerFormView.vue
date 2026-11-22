@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n';
 import { api, type Customer, type InvoicePage } from '../api';
 import InvoiceList from '../components/InvoiceList.vue';
 import { useNewInvoice } from '../composables/useNewInvoice';
+import AiReviewNotice from '../components/AiReviewNotice.vue';
 import CustomerFields from '../components/CustomerFields.vue';
 import { useCustomerForm } from '../composables/useCustomerForm';
 import { useErrorText } from '../i18n';
@@ -97,6 +98,12 @@ async function remove(): Promise<void> {
     <p v-if="loading" class="hint">{{ t('common.loading') }}</p>
 
     <template v-else-if="isNew || customer">
+      <!-- FR-MCP-10: created by an AI assistant – check, then save or confirm. -->
+      <AiReviewNotice
+        v-if="customer?.aiCreated"
+        :path="`customers/${customer.id}`"
+        @reviewed="customer && (customer.aiCreated = false)"
+      />
       <p v-if="customer?.archived" class="alert" role="status">
         {{ t('customers.archivedNotice') }}
       </p>

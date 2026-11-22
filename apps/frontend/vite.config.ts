@@ -6,8 +6,8 @@ export default defineConfig({
   // (e.g. /api/hassio_ingress/<token>/) as well as at "/" for direct access.
   base: './',
   plugins: [vue()],
-  // Consume workspace packages from TypeScript sources (see "source" export condition).
-  resolve: { conditions: ['source', ...defaultClientConditions] },
+  // Consume workspace packages from TypeScript sources (see "sim-source" export condition).
+  resolve: { conditions: ['sim-source', ...defaultClientConditions] },
   server: {
     port: 5173,
     proxy: { '/api': 'http://localhost:8099' },

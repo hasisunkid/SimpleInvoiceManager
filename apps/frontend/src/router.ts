@@ -155,6 +155,12 @@ export function createAppRouter(): Router {
         component: () => import('./views/BackupView.vue'),
         meta: { admin: true, tab: 'more' },
       },
+      {
+        path: '/settings/tokens',
+        name: 'tokens',
+        component: () => import('./views/AdminTokensView.vue'),
+        meta: { admin: true, tab: 'more' },
+      },
       { path: '/:pathMatch(.*)*', redirect: '/' },
     ],
   });

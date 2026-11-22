@@ -2,9 +2,16 @@
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { LUMP_SUM_UNIT, formatDate, type CompanyProfile, type DocumentLanguage } from '@sim/domain';
+import {
+  LUMP_SUM_UNIT,
+  catalogPositionText,
+  formatDate,
+  type CompanyProfile,
+  type DocumentLanguage,
+} from '@sim/domain';
 import type { Language } from '@sim/i18n';
 import { api, type CatalogItem, type Customer, type Invoice } from '../api';
+import AiReviewNotice from '../components/AiReviewNotice.vue';
 import CatalogSheet from '../components/CatalogSheet.vue';
 import InvoicePdfActions from '../components/InvoicePdfActions.vue';
 import InvoiceStatusActions from '../components/InvoiceStatusActions.vue';
@@ -98,7 +105,7 @@ function addFromCatalog(item: CatalogItem): void {
   draft.positions.push(
     withKey({
       type: item.type,
-      description: item.description ? `${item.title}\n${item.description}` : item.title,
+      description: catalogPositionText(item),
       quantityMilli: 1000,
       unitCode: item.unitCode,
       unitPriceCents: item.unitPriceCents,
@@ -246,6 +253,12 @@ async function reload(): Promise<void> {
     <p v-if="error" class="alert" role="alert">{{ error }}</p>
 
     <template v-if="loaded && invoice">
+      <!-- FR-MCP-10: draft written by an AI assistant – a person checks it. -->
+      <AiReviewNotice
+        v-if="invoice.aiCreated"
+        :path="`invoices/${invoice.id}`"
+        @reviewed="invoice.aiCreated = false"
+      />
       <div v-if="saveState === 'conflict'" class="alert" role="alert">
         {{ t('editor.conflict') }}
         <button type="button" class="secondary" @click="reload">{{ t('editor.reload') }}</button>

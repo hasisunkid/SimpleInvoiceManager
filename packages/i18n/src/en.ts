@@ -51,6 +51,8 @@ export const en: Messages = {
     serverUnreachable: 'The server cannot be reached. Please try again later.',
   },
   errors: {
+    TOKEN_NOT_FOUND: 'This access no longer exists.',
+    TOKEN_NAME_REQUIRED: 'Please give the access a name.',
     INVALID_CREDENTIALS: 'Username or password is wrong.',
     TOO_MANY_ATTEMPTS: 'Too many failed attempts. Please try again in {seconds} seconds.',
     UNAUTHENTICATED: 'Please sign in again.',
@@ -122,6 +124,40 @@ export const en: Messages = {
   home: {
     welcome: 'Hello {name}!',
     comingSoon: 'Invoices, customers and services are coming in the next versions.',
+  },
+  ai: {
+    badge: 'Created by AI',
+    filter: 'Only "Created by AI"',
+    notice: 'Created by an AI assistant. Please check it – saving or "Checked" removes this note.',
+    reviewed: 'Checked',
+  },
+  tokens: {
+    title: 'AI access',
+    hint: 'With a personal access key, an AI assistant (e.g. Claude) can create invoice drafts for you. It can never finalize an invoice, mark it paid or cancel it – you always do that.',
+    disabled:
+      'The AI interface is switched off. An administrator can switch it on in the app configuration (option "mcp_enabled").',
+    name: 'Name of the access',
+    namePlaceholder: 'e.g. Claude on my laptop',
+    expiry: 'Valid',
+    expiryNever: 'Until revoked',
+    expiryDays: '{days} days',
+    create: 'Create access',
+    created: 'Access created. Copy the key now – it is shown only this once.',
+    secret: 'Key',
+    copy: 'Copy',
+    copied: 'Copied.',
+    address: 'Address for the AI assistant',
+    addressIngress:
+      'The AI assistant does not connect through Home Assistant but through the direct port: http://<home-assistant>:8099/mcp (only in your home network or behind HTTPS).',
+    empty: 'No access keys yet.',
+    lastUsed: 'Last used on {date}',
+    neverUsed: 'Never used',
+    expires: 'Valid until {date}',
+    revoke: 'Revoke',
+    revokeConfirm: 'Revoke the access "{name}"? The AI assistant can no longer use it.',
+    revoked: 'Revoked',
+    expired: 'Expired',
+    owner: 'User: {name}',
   },
   profile: {
     title: 'My profile',
@@ -220,6 +256,8 @@ export const en: Messages = {
     numberingHint: 'Start number and format',
     export: 'Backup',
     exportHint: 'Download all data and PDFs',
+    tokens: 'AI access',
+    tokensHint: 'View and revoke the access keys of all users',
   },
   style: {
     title: 'Invoice design',

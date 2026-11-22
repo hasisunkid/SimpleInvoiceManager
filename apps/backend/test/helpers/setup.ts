@@ -2,6 +2,7 @@ import { expect } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { extractText, getDocumentProxy } from 'unpdf';
 import { buildApp } from '../../src/app.js';
+import type { Config } from '../../src/config.js';
 import { ensureInitialAdmin } from '../../src/users/bootstrap.js';
 import { createTestDatabase, type TestDatabase } from './db.js';
 import { TestClient } from './client.js';
@@ -28,9 +29,12 @@ async function readyClient(app: FastifyInstance, username: string, first: string
 }
 
 /** Fresh database + app with one admin and one normal user, both logged in. */
-export async function createTestApp(name: string): Promise<TestApp> {
+export async function createTestApp(
+  name: string,
+  overrides: Partial<Config> = {},
+): Promise<TestApp> {
   const t = await createTestDatabase(name);
-  const app = await buildApp({ config: t.config, db: t.db });
+  const app = await buildApp({ config: { ...t.config, ...overrides }, db: t.db });
   await ensureInitialAdmin(t.db, 'initial-admin-pw');
   const admin = await readyClient(app, 'admin', 'initial-admin-pw');
   const created = await admin.post('/api/users', {

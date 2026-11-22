@@ -8,5 +8,11 @@ configuration:
   log_level:
     name: Log level
     description: How much the app writes to the log.
+  mcp_enabled:
+    name: AI assistants (MCP)
+    description: Lets AI assistants such as Claude create invoice drafts with a personal access key (Profile → AI access). They connect through the direct port 8099 – only enable it in your home network or behind HTTPS. Drafts only – never finalized, paid or cancelled invoices.
+  public_url:
+    name: App address for links
+    description: Optional. The address you open the app with (e.g. https://invoices.example.com/). AI assistants link drafts to it.
 network:
   8099/tcp: Direct access without Home Assistant (optional, normally leave empty)

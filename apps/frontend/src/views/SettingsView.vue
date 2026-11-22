@@ -10,6 +10,7 @@ const entries = [
   { to: 'style', title: 'settings.style', hint: 'settings.styleHint' },
   { to: 'numbering', title: 'settings.numbering', hint: 'settings.numberingHint' },
   { to: 'backup', title: 'settings.export', hint: 'settings.exportHint' },
+  { to: 'tokens', title: 'settings.tokens', hint: 'settings.tokensHint' },
 ] as const;
 </script>
 

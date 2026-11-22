@@ -16,6 +16,7 @@ function compose(...args: string[]): void {
       INITIAL_ADMIN_PASSWORD: E2E.initialAdminPassword,
       SEED_DEMO: 'true',
       BUILD_VERSION: E2E.buildVersion,
+      MCP_ENABLED: 'true',
       SESSION_SECRET: 'e2e-session-secret-0123456789-abcdefgh',
     },
   });

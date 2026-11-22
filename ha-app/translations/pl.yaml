@@ -8,5 +8,11 @@ configuration:
   log_level:
     name: Poziom logowania
     description: Ile informacji aplikacja zapisuje w logu.
+  mcp_enabled:
+    name: Asystenci AI (MCP)
+    description: Pozwala asystentom AI, np. Claude, tworzyć projekty faktur przy użyciu osobistego dostępu (Profil → Dostępy dla AI). Łączą się przez bezpośredni port 8099 – włączaj tylko w sieci domowej lub za HTTPS. Tylko projekty – nigdy wystawione, zapłacone ani anulowane faktury.
+  public_url:
+    name: Adres aplikacji dla linków
+    description: Opcjonalnie. Adres, pod którym otwierasz aplikację (np. https://faktury.example.pl/). Asystenci AI linkują do niego projekty.
 network:
   8099/tcp: Bezpośredni dostęp bez Home Assistant (opcjonalnie, zwykle pozostaw puste)

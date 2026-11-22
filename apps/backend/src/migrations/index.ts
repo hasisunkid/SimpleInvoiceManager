@@ -4,6 +4,7 @@ import * as m0002 from './0002_session.js';
 import * as m0003 from './0003_company_style_numbering.js';
 import * as m0004 from './0004_customer_catalog.js';
 import * as m0005 from './0005_invoice.js';
+import * as m0006 from './0006_mcp.js';
 
 /**
  * Migrations are registered explicitly instead of being discovered on disk, so they work
@@ -24,6 +25,7 @@ const migrations: readonly Entry[] = [
   ['0003_company_style_numbering', m0003],
   ['0004_customer_catalog', m0004],
   ['0005_invoice', m0005],
+  ['0006_mcp', m0006],
 ];
 
 export const migrationSource: Knex.MigrationSource<Entry> = {

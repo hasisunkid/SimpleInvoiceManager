@@ -8,6 +8,7 @@ import {
 import { transactionWithRetry, type Db } from '../db.js';
 import { loadCompany } from '../company/repository.js';
 import { findCustomer } from '../customers/repository.js';
+import { reviewedColumn } from '../mcp/origin.js';
 import type { FileStore } from '../files/store.js';
 import { assignInvoiceNumber, loadNumbering } from '../numbering/repository.js';
 import { buildInvoiceDocument, loadPrintStyle } from '../pdf/invoice-document.js';
@@ -95,6 +96,8 @@ export async function finalizeInvoice(
           labour_incl_vat_cents: totals.labourCostInclVatCents,
           pdf_file_id: file.id,
           pdf_sha256: file.sha256,
+          // A person finalized it – that clears "Von KI erstellt" (FR-MCP-10).
+          ...reviewedColumn(trx),
           finalized_at: new Date(),
           finalized_by: userId,
           version: invoice.version + 1,

@@ -40,6 +40,8 @@ async function expectData(t: TestDatabase, applied: number): Promise<void> {
   }
   if (applied >= 4) {
     expect((await t.db('customer').first())?.contact_person).toBe('Illing');
+    // 0006: rows from before the MCP server count as created in the app (FR-MCP-10).
+    expect((await t.db('customer').first())?.created_via).toBe('UI');
   }
 }
 
@@ -73,12 +75,13 @@ describe('migrations (NFR-OPS-01)', () => {
     const t = await createTestDatabase('mig_names');
     databases.push(t);
     const names = (await t.db('knex_migrations').orderBy('id').select('name')).map((r) => r.name);
-    expect(names.slice(0, 5)).toEqual([
+    expect(names.slice(0, 6)).toEqual([
       '0001_app_user',
       '0002_session',
       '0003_company_style_numbering',
       '0004_customer_catalog',
       '0005_invoice',
+      '0006_mcp',
     ]);
     expect(names).toEqual([...names].sort());
   });

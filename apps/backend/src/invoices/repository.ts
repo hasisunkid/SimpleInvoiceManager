@@ -17,6 +17,14 @@ import {
 import type { Language } from '@sim/i18n';
 import { transactionWithRetry, type Db } from '../db.js';
 import { likePattern, searchTerms } from '../customers/repository.js';
+import {
+  aiCreatedSql,
+  isAiCreated,
+  originColumns,
+  reviewedColumn,
+  UI_ORIGIN,
+  type Origin,
+} from '../mcp/origin.js';
 
 type Executor = Db | Knex.Transaction;
 
@@ -46,6 +54,8 @@ interface InvoiceRow {
   paid_at: string | null;
   cancel_reason: string | null;
   version: number;
+  created_via: 'UI' | 'MCP';
+  ai_reviewed_at: Date | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -84,6 +94,8 @@ export interface StoredInvoice extends Omit<InvoiceDraftData, 'positions'> {
   /** The stored reference PDF (FR-INV-15); null for drafts. */
   pdfFileId: number | null;
   positions: StoredPosition[];
+  /** FR-MCP-10: draft written by an AI assistant and not yet checked by a person. */
+  aiCreated: boolean;
   totals: {
     netCents: number;
     vatCents: number;
@@ -126,6 +138,7 @@ function toInvoice(row: InvoiceRow, positions: PositionRow[]): StoredInvoice {
     sellerSnapshot: parseJson(row.seller_snapshot as string | SellerSnapshot | null),
     buyerSnapshot: parseJson(row.buyer_snapshot as string | BuyerSnapshot | null),
     pdfFileId: row.pdf_file_id,
+    aiCreated: isAiCreated(row),
     positions: positions.map((p) => ({
       type: p.type,
       description: p.description,
@@ -229,11 +242,13 @@ export async function createDraft(
   data: InvoiceDraftData,
   taxMode: TaxMode,
   userId: number,
+  origin: Origin = UI_ORIGIN,
 ): Promise<number> {
   return transactionWithRetry(db, async (trx) => {
     const { positions, totals } = calculateInvoice(data.positions, taxMode);
     const [id] = await trx('invoice').insert({
       ...draftColumns(data, taxMode, totals),
+      ...originColumns(origin),
       status: 'DRAFT',
       created_by: userId,
       updated_by: userId,
@@ -258,6 +273,8 @@ export async function saveDraft(
   data: InvoiceDraftData,
   taxMode: TaxMode,
   userId: number,
+  /** True for saves by a person in the app: clears "Von KI erstellt" (FR-MCP-10). */
+  { review = true }: { review?: boolean } = {},
 ): Promise<SaveResult> {
   return transactionWithRetry(db, async (trx) => {
     const row = await trx<InvoiceRow>('invoice')
@@ -273,6 +290,7 @@ export async function saveDraft(
       .where({ id })
       .update({
         ...draftColumns(data, taxMode, totals),
+        ...(review ? reviewedColumn(trx) : {}),
         version: row.version + 1,
         updated_by: userId,
         updated_at: new Date(),
@@ -282,15 +300,30 @@ export async function saveDraft(
   });
 }
 
+/** FR-MCP-10: a person confirmed the AI-written draft ("Geprüft"). */
+export async function markInvoiceReviewed(db: Db, id: number, userId: number): Promise<boolean> {
+  const n = await db('invoice')
+    .where({ id })
+    .update({ ...reviewedColumn(db), updated_by: userId, updated_at: new Date() });
+  return n > 0;
+}
+
 /** FR-INV-13: only drafts can be deleted; finalized invoices are kept (NFR-DATA-01). */
 export async function deleteDraft(
   db: Db,
   id: number,
-): Promise<'deleted' | 'not-found' | 'not-deletable'> {
+  /** MCP passes the version it last read (FR-MCP-07); the app deletes without. */
+  expectedVersion?: number,
+): Promise<'deleted' | 'not-found' | 'not-deletable' | 'conflict'> {
   return db.transaction(async (trx) => {
-    const row = await trx<InvoiceRow>('invoice').select('status').where({ id }).forUpdate().first();
+    const row = await trx<InvoiceRow>('invoice')
+      .select('status', 'version')
+      .where({ id })
+      .forUpdate()
+      .first();
     if (!row) return 'not-found';
     if (row.status !== 'DRAFT') return 'not-deletable';
+    if (expectedVersion !== undefined && row.version !== expectedVersion) return 'conflict';
     await trx('invoice').where({ id }).delete();
     return 'deleted';
   });
@@ -305,6 +338,7 @@ export interface InvoiceListItem {
   invoiceDate: string;
   dueDate: string;
   grossCents: number;
+  aiCreated: boolean;
 }
 
 export type ListStatusFilter = InvoiceStatus | 'OVERDUE';
@@ -318,6 +352,8 @@ export interface InvoiceListQuery {
   to?: string;
   /** Search by invoice number or customer name. */
   q?: string;
+  /** FR-MCP-10 filter "Von KI erstellt". */
+  aiCreated?: boolean;
   sort?: ListSort;
   order?: 'asc' | 'desc';
   /** "Today" for the overdue filter (Europe/Berlin, FR-INV-10). */
@@ -347,6 +383,7 @@ export async function listInvoices(
     from,
     to,
     q,
+    aiCreated = false,
     sort = 'date',
     order = 'desc',
     today,
@@ -361,6 +398,7 @@ export async function listInvoices(
       if (customerId) b.where('i.customer_id', customerId);
       if (from) b.where('i.invoice_date', '>=', from);
       if (to) b.where('i.invoice_date', '<=', to);
+      if (aiCreated) b.whereRaw(aiCreatedSql('i'));
       for (const term of searchTerms(q)) {
         const pattern = likePattern(term);
         b.where((w) =>
@@ -390,6 +428,7 @@ export async function listInvoices(
         'i.due_date',
         'i.gross_total_cents',
         db.raw(`${NAME_SQL} as customer_name`),
+        db.raw(`${aiCreatedSql('i')} as ai_created`),
       )
       .orderByRaw(orderSql)
       .limit(limit)
@@ -411,6 +450,7 @@ export async function listInvoices(
       invoiceDate: r.invoice_date as string,
       dueDate: r.due_date as string,
       grossCents: Number(r.gross_total_cents),
+      aiCreated: Boolean(Number(r.ai_created)),
     })),
     total: Number(countRow?.n ?? 0),
     openTotalCents: Number(openRow?.s ?? 0),

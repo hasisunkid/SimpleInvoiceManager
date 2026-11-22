@@ -40,6 +40,8 @@ const from = ref(queryText('from'));
 const to = ref(queryText('to'));
 const sort = ref(queryText('sort') || 'date:desc');
 const customerId = ref(queryText('customerId'));
+/** FR-MCP-10 filter "Von KI erstellt" (URL: ?ai=1). */
+const aiCreated = ref(queryText('ai') === '1');
 const customerName = ref('');
 const debouncedSearch = useDebounced(search);
 
@@ -56,12 +58,14 @@ const params = computed(() => {
   if (from.value) p.from = from.value;
   if (to.value) p.to = to.value;
   if (customerId.value) p.customerId = customerId.value;
+  if (aiCreated.value) p.aiCreated = 'true';
   return p;
 });
 const hasFilters = computed(
   () =>
-    Boolean(status.value || search.value || from.value || to.value || customerId.value) ||
-    sort.value !== 'date:desc',
+    Boolean(
+      status.value || search.value || from.value || to.value || customerId.value || aiCreated.value,
+    ) || sort.value !== 'date:desc',
 );
 
 async function load(append = false): Promise<void> {
@@ -91,6 +95,7 @@ const urlQuery = computed(() => {
   if (from.value) q.from = from.value;
   if (to.value) q.to = to.value;
   if (customerId.value) q.customerId = customerId.value;
+  if (aiCreated.value) q.ai = '1';
   if (sort.value !== 'date:desc') q.sort = sort.value;
   return q;
 });
@@ -123,6 +128,7 @@ onMounted(async () => {
 
 function clearFilters(): void {
   status.value = search.value = from.value = to.value = customerId.value = '';
+  aiCreated.value = false;
   sort.value = 'date:desc';
 }
 </script>
@@ -175,6 +181,11 @@ function clearFilters(): void {
         {{ t('invoices.clearFilters') }}
       </button>
     </div>
+
+    <label class="checkbox">
+      <input v-model="aiCreated" type="checkbox" />
+      {{ t('ai.filter') }}
+    </label>
 
     <details class="card details">
       <summary>{{ t('invoices.filters') }}</summary>

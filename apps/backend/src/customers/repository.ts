@@ -2,6 +2,14 @@ import type { Knex } from 'knex';
 import { customerDisplayName, type CustomerData, type CustomerType } from '@sim/domain';
 import type { Language } from '@sim/i18n';
 import type { Db } from '../db.js';
+import {
+  aiCreatedSql,
+  isAiCreated,
+  originColumns,
+  reviewedColumn,
+  UI_ORIGIN,
+  type Origin,
+} from '../mcp/origin.js';
 
 interface CustomerRow {
   id: number;
@@ -18,6 +26,8 @@ interface CustomerRow {
   invoice_language: Language;
   notes: string;
   archived: number | boolean;
+  created_via: 'UI' | 'MCP';
+  ai_reviewed_at: Date | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -26,6 +36,8 @@ export interface Customer extends CustomerData {
   id: number;
   displayName: string;
   archived: boolean;
+  /** FR-MCP-10: created by an AI assistant and not yet checked by a person. */
+  aiCreated: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -50,6 +62,7 @@ function toCustomer(row: CustomerRow): Customer {
     ...data,
     displayName: customerDisplayName(data),
     archived: Boolean(row.archived),
+    aiCreated: isAiCreated(row),
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
   };
@@ -89,6 +102,8 @@ export function searchTerms(query: string | undefined): string[] {
 export interface CustomerQuery {
   q?: string;
   includeArchived?: boolean;
+  /** FR-MCP-10 filter "Von KI erstellt". */
+  aiCreated?: boolean;
   limit: number;
   offset: number;
 }
@@ -99,11 +114,12 @@ export interface CustomerQuery {
  */
 export async function searchCustomers(
   db: Db,
-  { q, includeArchived = false, limit, offset }: CustomerQuery,
+  { q, includeArchived = false, aiCreated = false, limit, offset }: CustomerQuery,
 ): Promise<{ items: Customer[]; total: number }> {
   const terms = (q ?? '').trim().length >= 2 ? searchTerms(q) : [];
   const base = db<CustomerRow>('customer').modify((query) => {
     if (!includeArchived) query.where('archived', false);
+    if (aiCreated) query.whereRaw(aiCreatedSql());
     for (const term of terms) {
       const pattern = likePattern(term);
       query.where((w) =>
@@ -138,8 +154,14 @@ export async function insertCustomer(
   db: Db,
   c: CustomerData,
   userId: number | null,
+  origin: Origin = UI_ORIGIN,
 ): Promise<number> {
-  const [id] = await db('customer').insert({ ...toRow(c), created_by: userId, updated_by: userId });
+  const [id] = await db('customer').insert({
+    ...toRow(c),
+    ...originColumns(origin),
+    created_by: userId,
+    updated_by: userId,
+  });
   return id as number;
 }
 
@@ -151,8 +173,39 @@ export async function updateCustomer(
 ): Promise<boolean> {
   const n = await db('customer')
     .where({ id })
-    .update({ ...toRow(c), updated_by: userId, updated_at: new Date() });
+    // A person edited and saved it: no longer "Von KI erstellt" (FR-MCP-10).
+    .update({ ...toRow(c), ...reviewedColumn(db), updated_by: userId, updated_at: new Date() });
   return n > 0;
+}
+
+/** FR-MCP-10: a person confirmed the AI-created customer ("Geprüft"). */
+export async function markCustomerReviewed(db: Db, id: number, userId: number): Promise<boolean> {
+  const n = await db('customer')
+    .where({ id })
+    .update({ ...reviewedColumn(db), updated_by: userId, updated_at: new Date() });
+  return n > 0;
+}
+
+/** Lightweight rows for the MCP similarity lookup (FR-MCP-05) – all customers, incl. archived. */
+export async function customerCandidates(db: Db) {
+  const rows = await db<CustomerRow>('customer').select(
+    'id',
+    'type',
+    'company_name',
+    'contact_person',
+    'zip',
+    'city',
+    'archived',
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    type: r.type,
+    companyName: r.company_name,
+    contactPerson: r.contact_person,
+    zip: r.zip,
+    city: r.city,
+    archived: Boolean(r.archived),
+  }));
 }
 
 export async function setCustomerArchived(

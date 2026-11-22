@@ -11,6 +11,7 @@ import {
 } from '@sim/domain';
 import { api, type CatalogItem } from '../api';
 import { useDebounced } from '../composables/useDebounced';
+import AiBadge from '../components/AiBadge.vue';
 import { useErrorText } from '../i18n';
 
 /** FR-CAT-01..03: catalogue of reusable work and material positions. */
@@ -21,6 +22,8 @@ const query = ref('');
 const debounced = useDebounced(query);
 const type = ref<PositionType | null>(null);
 const includeInactive = ref(false);
+/** FR-MCP-10 filter "Von KI erstellt". */
+const aiCreated = ref(false);
 const items = ref<CatalogItem[]>([]);
 const loading = ref(false);
 const error = ref('');
@@ -37,6 +40,7 @@ async function load(): Promise<void> {
   const params = new URLSearchParams({
     q: debounced.value,
     includeInactive: String(includeInactive.value),
+    aiCreated: String(aiCreated.value),
     ...(type.value ? { type: type.value } : {}),
   });
   try {
@@ -48,7 +52,7 @@ async function load(): Promise<void> {
   }
 }
 
-watch([debounced, type, includeInactive], () => void load(), { immediate: true });
+watch([debounced, type, includeInactive, aiCreated], () => void load(), { immediate: true });
 </script>
 
 <template>
@@ -91,10 +95,14 @@ watch([debounced, type, includeInactive], () => void load(), { immediate: true }
       <input v-model="includeInactive" type="checkbox" />
       {{ t('catalog.showInactive') }}
     </label>
+    <label class="checkbox">
+      <input v-model="aiCreated" type="checkbox" />
+      {{ t('ai.filter') }}
+    </label>
 
     <p v-if="error" class="alert" role="alert">{{ error }}</p>
     <p v-else-if="!loading && items.length === 0" class="hint">
-      {{ query.trim() ? t('common.noResults') : t('catalog.empty') }}
+      {{ query.trim() || aiCreated ? t('common.noResults') : t('catalog.empty') }}
     </p>
 
     <ul class="list" :aria-busy="loading">
@@ -113,6 +121,7 @@ watch([debounced, type, includeInactive], () => void load(), { immediate: true }
             <span v-if="!item.active" class="badge badge--danger">
               {{ t('catalog.inactiveBadge') }}
             </span>
+            <AiBadge v-if="item.aiCreated" />
           </span>
         </RouterLink>
       </li>

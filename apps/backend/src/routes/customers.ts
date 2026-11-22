@@ -11,6 +11,7 @@ import {
   searchCustomers,
   setCustomerArchived,
   updateCustomer,
+  markCustomerReviewed,
 } from '../customers/repository.js';
 import { IdParamsSchema, LanguageSchema, errorResponses } from '../schemas.js';
 
@@ -50,6 +51,8 @@ export const CustomerSchema = Type.Object({
   invoiceLanguage: LanguageSchema,
   notes: Type.String(),
   archived: Type.Boolean(),
+  /** FR-MCP-10: badge "Von KI erstellt". */
+  aiCreated: Type.Boolean(),
   createdAt: Type.String({ format: 'date-time' }),
   updatedAt: Type.String({ format: 'date-time' }),
 });
@@ -96,6 +99,8 @@ export const customerRoutes: FastifyPluginAsyncTypebox<{ db: Db }> = async (app,
         querystring: Type.Object({
           q: Type.Optional(Type.String({ maxLength: 100 })),
           includeArchived: Type.Optional(Type.Boolean({ default: false })),
+          /** FR-MCP-10 filter "Von KI erstellt". */
+          aiCreated: Type.Optional(Type.Boolean({ default: false })),
           limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 200, default: 50 })),
           offset: Type.Optional(Type.Integer({ minimum: 0, default: 0 })),
         }),
@@ -106,10 +111,11 @@ export const customerRoutes: FastifyPluginAsyncTypebox<{ db: Db }> = async (app,
       },
     },
     async (request) => {
-      const { q, includeArchived, limit = 50, offset = 0 } = request.query;
+      const { q, includeArchived, aiCreated, limit = 50, offset = 0 } = request.query;
       return searchCustomers(db, {
         limit,
         offset,
+        ...(aiCreated !== undefined ? { aiCreated } : {}),
         ...(q !== undefined ? { q } : {}),
         ...(includeArchived !== undefined ? { includeArchived } : {}),
       });
@@ -167,6 +173,25 @@ export const customerRoutes: FastifyPluginAsyncTypebox<{ db: Db }> = async (app,
       const found = await updateCustomer(db, request.params.id, data, currentAuth(request).user.id);
       if (!found) return reply.code(404).send(notFound);
       return (await findCustomer(db, request.params.id))!;
+    },
+  );
+
+  app.post(
+    '/customers/:id/reviewed',
+    {
+      schema: {
+        summary: 'Confirm an AI-created customer ("Geprüft", FR-MCP-10)',
+        tags: ['customers'],
+        params: IdParamsSchema,
+        response: { 200: CustomerSchema, ...errorResponses(401, 403, 404) },
+      },
+    },
+    async (request, reply) => {
+      const { id } = request.params;
+      if (!(await markCustomerReviewed(db, id, currentAuth(request).user.id))) {
+        return reply.code(404).send(notFound);
+      }
+      return (await findCustomer(db, id))!;
     },
   );
 

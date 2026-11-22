@@ -23,6 +23,13 @@ export interface Config {
   readonly seedDemo: boolean;
   /** AR-26: product version baked into the image (BUILD_VERSION → APP_VERSION); `dev` locally. */
   readonly version: string;
+  /** FR-MCP-12: MCP server at /mcp – off unless MCP_ENABLED=true. */
+  readonly mcpEnabled: boolean;
+  /**
+   * Address under which people open the app (e.g. https://rechnungen.example.de/); used for
+   * the links that MCP tools return. Empty = derived from the MCP request.
+   */
+  readonly publicUrl: string;
 }
 
 export class ConfigError extends Error {
@@ -88,6 +95,19 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): LoadConfigResu
     throw new ConfigError(`APP_VERSION must be a version such as 0.8.0, got "${version}"`);
   }
 
+  const publicUrl = (env.PUBLIC_URL ?? '').trim();
+  if (publicUrl) {
+    let parsed: URL | undefined;
+    try {
+      parsed = new URL(publicUrl);
+    } catch {
+      parsed = undefined;
+    }
+    if (!parsed || !['http:', 'https:'].includes(parsed.protocol)) {
+      throw new ConfigError(`PUBLIC_URL must be an http(s) URL, got "${publicUrl}"`);
+    }
+  }
+
   let sessionSecret = env.SESSION_SECRET ?? '';
   if (sessionSecret === '') {
     sessionSecret = randomBytes(32).toString('hex');
@@ -114,6 +134,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): LoadConfigResu
     logLevel: logLevel as Config['logLevel'],
     seedDemo: env.SEED_DEMO === 'true',
     version,
+    mcpEnabled: env.MCP_ENABLED === 'true',
+    publicUrl: publicUrl ? publicUrl.replace(/\/*$/, '/') : '',
   };
   return { config, warnings };
 }

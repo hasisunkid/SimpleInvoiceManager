@@ -2,8 +2,8 @@ import { defineConfig } from 'vitest/config';
 
 // One entry point for `npm test` (TR-08): unit + integration tests of all workspaces.
 export default defineConfig({
-  resolve: { conditions: ['source'] },
-  ssr: { resolve: { conditions: ['source'] } },
+  resolve: { conditions: ['sim-source'] },
+  ssr: { resolve: { conditions: ['sim-source'] } },
   test: {
     projects: [
       'packages/domain',

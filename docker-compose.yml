@@ -48,6 +48,9 @@ services:
       PORT: 8099
       LOG_LEVEL: ${LOG_LEVEL:-info}
       SEED_DEMO: ${SEED_DEMO:-true}
+      # FR-MCP-12: MCP server for AI assistants (POST /mcp), off unless MCP_ENABLED=true.
+      MCP_ENABLED: ${MCP_ENABLED:-false}
+      PUBLIC_URL: ${PUBLIC_URL:-}
     ports:
       - '${APP_PUBLISHED_PORT:-8099}:8099'
     volumes:

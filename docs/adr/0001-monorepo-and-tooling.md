@@ -12,7 +12,9 @@ built, linted and tested with single commands (TR-08).
 
 - **npm workspaces** (no extra tool such as pnpm/turbo – one less thing to install).
 - Everything is **ES modules**, TypeScript `strict` + `noUncheckedIndexedAccess`.
-- Workspace packages expose a custom **`source` export condition** pointing at `src/*.ts`.
+- Workspace packages expose a custom **`sim-source` export condition** pointing at `src/*.ts`
+  (named `source` until M9 – renamed because dependencies such as `eventsource-parser` publish
+  their own `source` condition with TypeScript files).
   Vite, Vitest, `tsx` (dev) and `tsc` (`customConditions`) resolve the TypeScript sources
   directly; production Node resolves the compiled `dist/`. No watch builds of packages needed.
 - `tsc -b` with project references builds `packages/*` and `apps/backend`; the frontend is

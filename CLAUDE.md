@@ -48,6 +48,12 @@ Before reporting work as done: `npm run lint && npm run typecheck && npm test` m
   every new CODE needs an `errors.CODE` text in all three languages.
 - New API routes: `test/security.test.ts` fixes the public routes and admin areas – adding a
   public or admin route means updating its expected lists on purpose.
+- MCP (`apps/backend/src/mcp/`, ADR 0014): tools may only read, or create/change **drafts** –
+  never add a tool that finalizes, numbers, pays, cancels or changes settings (FR-MCP-02;
+  `test/mcp.test.ts` pins the tool list). Amounts/quantities are decimal strings parsed by the
+  domain package; similarity rules live in `packages/domain/src/matching.ts`. Records created
+  via MCP pass `Origin { via: 'MCP' }`; saves by people clear the marker, MCP saves pass
+  `review: false`.
 - Frontend calls go through `api` in `apps/frontend/src/api.ts` (adds the CSRF header).
 - PDF output goes through `InvoiceRenderer` (`apps/backend/src/pdf/`); build an
   `InvoiceDocument` with final amounts – renderers never calculate. PDF labels come from the

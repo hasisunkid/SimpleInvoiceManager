@@ -32,7 +32,12 @@ options:
   database: simpleinvoice
   initial_admin_password: ''
   log_level: info
+  mcp_enabled: false
 schema:
   database: match(^[A-Za-z0-9_]{1,64}$)
   initial_admin_password: password?
   log_level: list(trace|debug|info|warn|error|fatal)
+  # FR-MCP-12: MCP server for AI assistants (draft invoices only), default off.
+  mcp_enabled: bool
+  # Address people open the app with – used for links returned to AI assistants (optional).
+  public_url: url?

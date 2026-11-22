@@ -97,6 +97,7 @@ describe('status actions (FR-INV-13, FR-INV-14)', () => {
       number: '104',
       status: 'OPEN',
       version: 2,
+      aiCreated: false,
       customerId: 5,
       customer: null,
       documentLanguage: 'de',

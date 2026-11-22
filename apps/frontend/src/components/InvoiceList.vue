@@ -3,6 +3,7 @@ import { RouterLink } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { cents, formatDate, formatMoney, type DocumentLanguage } from '@sim/domain';
 import type { InvoiceListItem } from '../api';
+import AiBadge from './AiBadge.vue';
 
 /** Invoice rows (FR-INV-21): number, customer, date, gross amount, status badge. */
 const props = defineProps<{ items: InvoiceListItem[]; showCustomer?: boolean }>();
@@ -34,6 +35,7 @@ const lang = () => locale.value as DocumentLanguage;
           <span v-if="invoice.overdue" class="badge badge--danger">
             {{ t('invoiceStatus.overdue') }}
           </span>
+          <AiBadge v-if="invoice.aiCreated" />
         </span>
       </RouterLink>
     </li>

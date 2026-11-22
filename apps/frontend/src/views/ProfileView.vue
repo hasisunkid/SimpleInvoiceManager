@@ -5,10 +5,11 @@ import type { Language } from '@sim/i18n';
 import { api, type PublicUser } from '../api';
 import LanguageSelect from '../components/LanguageSelect.vue';
 import PasswordChangeForm from '../components/PasswordChangeForm.vue';
+import TokenManager from '../components/TokenManager.vue';
 import { applyLanguage, browserLanguage, useErrorText } from '../i18n';
 import { session, setCurrentUser } from '../session';
 
-/** FR-AUTH-05: own UI language and password. */
+/** FR-AUTH-05: own UI language and password; FR-MCP-03: own AI access keys. */
 const { t, locale } = useI18n();
 const errorText = useErrorText();
 
@@ -59,5 +60,8 @@ async function saveLanguage(value: Language | null): Promise<void> {
     </section>
 
     <PasswordChangeForm />
+
+    <!-- FR-MCP-03: personal access keys for AI assistants. -->
+    <TokenManager />
   </main>
 </template>

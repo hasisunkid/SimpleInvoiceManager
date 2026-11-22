@@ -8,35 +8,32 @@ import {
   MAX_POSITIONS,
   MAX_QUANTITY_MILLI,
   MAX_UNIT_PRICE_CENTS,
-  calculateInvoice,
-  finalizeProblems,
   isIsoDate,
   isValidPaymentDate,
   isOverdue,
-  type InvoiceDraftData,
-  type TaxMode,
 } from '@sim/domain';
-import { translate, type Language } from '@sim/i18n';
+import { translate } from '@sim/i18n';
 import type { Db } from '../db.js';
 import { currentAuth } from '../auth/guard.js';
 import { loadCompany } from '../company/repository.js';
 import type { FileStore } from '../files/store.js';
 import { finalizeInvoice } from '../invoices/finalize.js';
 import { changeStatus, type StatusChangeResult } from '../invoices/status.js';
+import { invoiceDetail, newDraftData, selectableCustomer } from '../invoices/detail.js';
 import { buildInvoiceDocument, loadPrintStyle } from '../pdf/invoice-document.js';
 import type { InvoiceRenderer } from '../pdf/types.js';
-import { findCustomer, type Customer } from '../customers/repository.js';
+import { findCustomer } from '../customers/repository.js';
 import {
   createDraft,
   deleteDraft,
   findInvoice,
   invoiceSummary,
   listInvoices,
+  markInvoiceReviewed,
   statusHistory,
   saveDraft,
   type StoredInvoice,
 } from '../invoices/repository.js';
-import { loadNumbering } from '../numbering/repository.js';
 import { businessToday } from '../time.js';
 import { IdParamsSchema, LanguageSchema, errorResponses } from '../schemas.js';
 import { CustomerSchema } from './customers.js';
@@ -121,6 +118,8 @@ const InvoiceDetail = Type.Object({
   /** FR-INV-07: what is still missing before the draft can be finalized (empty = ready). */
   finalizeProblems: Type.Array(Type.String()),
   overdue: Type.Boolean(),
+  /** FR-MCP-10: badge "Von KI erstellt". */
+  aiCreated: Type.Boolean(),
   paidAt: Type.Union([Type.String(), Type.Null()]),
   cancelReason: Type.Union([Type.String(), Type.Null()]),
   createdAt: Type.String({ format: 'date-time' }),
@@ -137,6 +136,7 @@ const ListItem = Type.Object({
   dueDate: Type.String(),
   grossCents: Type.Integer(),
   overdue: Type.Boolean(),
+  aiCreated: Type.Boolean(),
 });
 
 const BinarySchema = Type.Unsafe<Buffer>({ type: 'string', format: 'binary' });
@@ -164,38 +164,8 @@ export const invoiceRoutes: FastifyPluginAsyncTypebox<InvoiceRoutesOptions> = as
 ) => {
   const notFound = { error: 'INVOICE_NOT_FOUND', message: 'Invoice not found' } as const;
 
-  /** Full editor view: live totals for drafts (current company tax mode), § 14 check. */
-  async function detail(invoice: StoredInvoice) {
-    const [{ profile }, numbering, customer] = await Promise.all([
-      loadCompany(db),
-      loadNumbering(db),
-      invoice.customerId ? findCustomer(db, invoice.customerId) : Promise.resolve(undefined),
-    ]);
-    const isDraft = invoice.status === 'DRAFT';
-    const taxMode: TaxMode = isDraft ? profile.taxMode : invoice.taxMode;
-    const { positions, totals } = calculateInvoice(invoice.positions, taxMode);
-    const problems: string[] = isDraft ? finalizeProblems(invoice, customer ?? null, profile) : [];
-    if (isDraft && !numbering.configured) problems.push('NUMBERING_NOT_CONFIGURED');
-    return {
-      ...invoice,
-      taxMode,
-      customer: customer ?? null,
-      positions,
-      totals: { ...totals, vatGroups: [...totals.vatGroups] },
-      finalizeProblems: problems,
-      overdue: isOverdue(invoice.status, invoice.dueDate, businessToday()),
-    };
-  }
-
-  /** A customer may be chosen for an invoice only if it exists and is not archived. */
-  async function checkCustomer(id: number): Promise<{ error: string; message: string } | Customer> {
-    const customer = await findCustomer(db, id);
-    if (!customer) return { error: 'CUSTOMER_NOT_FOUND', message: 'Customer not found' };
-    if (customer.archived) {
-      return { error: 'CUSTOMER_ARCHIVED', message: 'Archived customers cannot be selected' };
-    }
-    return customer;
-  }
+  const detail = (invoice: StoredInvoice) => invoiceDetail(db, invoice);
+  const checkCustomer = (id: number) => selectableCustomer(db, id);
 
   app.get(
     '/invoices',
@@ -209,6 +179,8 @@ export const invoiceRoutes: FastifyPluginAsyncTypebox<InvoiceRoutesOptions> = as
           from: Type.Optional(DateSchema),
           to: Type.Optional(DateSchema),
           q: Type.Optional(Type.String({ maxLength: 100 })),
+          /** FR-MCP-10 filter "Von KI erstellt". */
+          aiCreated: Type.Optional(Type.Boolean()),
           sort: Type.Optional(
             Type.Union([Type.Literal('date'), Type.Literal('number'), Type.Literal('amount')]),
           ),
@@ -315,6 +287,25 @@ export const invoiceRoutes: FastifyPluginAsyncTypebox<InvoiceRoutesOptions> = as
         return detail((await findInvoice(db, id))!);
     }
   }
+
+  app.post(
+    '/invoices/:id/reviewed',
+    {
+      schema: {
+        summary: 'Confirm a draft written by an AI assistant ("Geprüft", FR-MCP-10)',
+        tags: ['invoices'],
+        params: IdParamsSchema,
+        response: { 200: InvoiceDetail, ...errorResponses(401, 403, 404) },
+      },
+    },
+    async (request, reply) => {
+      const { id } = request.params;
+      if (!(await markInvoiceReviewed(db, id, currentAuth(request).user.id))) {
+        return reply.code(404).send(notFound);
+      }
+      return detail((await findInvoice(db, id))!);
+    },
+  );
 
   app.post(
     '/invoices/:id/pay',
@@ -430,29 +421,14 @@ export const invoiceRoutes: FastifyPluginAsyncTypebox<InvoiceRoutesOptions> = as
     },
     async (request, reply) => {
       const { customerId = null } = request.body;
-      let language: Language = 'de';
+      let customer = null;
       if (customerId !== null) {
-        const customer = await checkCustomer(customerId);
-        if ('error' in customer) return reply.code(400).send(customer);
-        language = customer.invoiceLanguage;
+        const found = await checkCustomer(customerId);
+        if ('error' in found) return reply.code(400).send(found);
+        customer = found;
       }
-      const { profile } = await loadCompany(db);
-      // FR-INV-02: invoice date = today, service date = invoice date; FR-COMP-03 defaults.
-      const today = businessToday();
-      const draft: InvoiceDraftData = {
-        customerId,
-        documentLanguage: language,
-        invoiceDate: today,
-        serviceDateFrom: today,
-        serviceDateTo: null,
-        paymentTermDays: profile.defaultPaymentTermDays,
-        siteAddress: '',
-        subject: '',
-        introText: profile.introTexts[language],
-        closingText: profile.closingTexts[language],
-        positions: [],
-      };
-      const id = await createDraft(db, draft, profile.taxMode, currentAuth(request).user.id);
+      const { draft, taxMode } = await newDraftData(db, customer);
+      const id = await createDraft(db, draft, taxMode, currentAuth(request).user.id);
       return reply.code(201).send(await detail((await findInvoice(db, id))!));
     },
   );

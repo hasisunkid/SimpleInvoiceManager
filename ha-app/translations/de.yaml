@@ -8,5 +8,11 @@ configuration:
   log_level:
     name: Protokollstufe
     description: Wie viel die App ins Protokoll schreibt.
+  mcp_enabled:
+    name: KI-Assistenten (MCP)
+    description: Erlaubt KI-Assistenten wie Claude, mit einem persönlichen Zugang (Profil → KI-Zugänge) Rechnungsentwürfe anzulegen. Sie verbinden sich über den direkten Port 8099 – nur im Heimnetz oder hinter HTTPS einschalten. Nur Entwürfe – nie fertige, bezahlte oder stornierte Rechnungen.
+  public_url:
+    name: Adresse der App für Links
+    description: Optional. Die Adresse, unter der Sie die App öffnen (z. B. https://rechnungen.example.de/). KI-Assistenten verlinken Entwürfe dorthin.
 network:
   8099/tcp: Direkter Zugriff ohne Home Assistant (optional, normalerweise leer lassen)

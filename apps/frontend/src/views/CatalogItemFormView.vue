@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
+import AiReviewNotice from '../components/AiReviewNotice.vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import {
@@ -110,6 +111,13 @@ async function remove(): Promise<void> {
     <h1>{{ isNew ? t('catalog.new') : t('catalog.edit') }}</h1>
 
     <p v-if="loading" class="hint">{{ t('common.loading') }}</p>
+
+    <!-- FR-MCP-10: created by an AI assistant – check, then save or confirm. -->
+    <AiReviewNotice
+      v-if="!loading && item?.aiCreated"
+      :path="`catalog/${item.id}`"
+      @reviewed="item && (item.aiCreated = false)"
+    />
 
     <form v-else-if="isNew || item" class="card" novalidate @submit.prevent="save">
       <fieldset class="choices">

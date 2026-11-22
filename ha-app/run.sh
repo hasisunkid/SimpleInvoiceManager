@@ -65,9 +65,15 @@ DATA_DIR=/data/files
 PORT=8099
 SEED_DEMO=false
 NODE_ENV=production
+# FR-MCP-12: MCP server for AI assistants – off unless switched on; reached via the direct port.
+MCP_ENABLED=$(jq -r '.mcp_enabled == true' "$OPTIONS")
+PUBLIC_URL=$(option public_url)
 export DB_HOST DB_PORT DB_USER DB_PASSWORD DB_NAME DATA_DIR SESSION_SECRET \
-  INITIAL_ADMIN_PASSWORD LOG_LEVEL PORT SEED_DEMO NODE_ENV
+  INITIAL_ADMIN_PASSWORD LOG_LEVEL PORT SEED_DEMO NODE_ENV MCP_ENABLED PUBLIC_URL
 
 log "Starting with database '$DB_NAME' on ${DB_HOST}:${DB_PORT}."
+if [ "$MCP_ENABLED" = true ]; then
+  log "MCP server for AI assistants is on (POST /mcp on the direct port 8099)."
+fi
 cd /app
 exec node --enable-source-maps apps/backend/dist/server.js

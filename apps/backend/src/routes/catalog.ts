@@ -14,6 +14,7 @@ import {
   insertCatalogItem,
   searchCatalog,
   updateCatalogItem,
+  markCatalogItemReviewed,
 } from '../catalog/repository.js';
 import { IdParamsSchema, errorResponses } from '../schemas.js';
 
@@ -35,6 +36,8 @@ const CatalogItemSchema = Type.Composite([
   Type.Object({ id: Type.Integer() }),
   CatalogBody,
   Type.Object({
+    /** FR-MCP-10: badge "Von KI erstellt". */
+    aiCreated: Type.Boolean(),
     createdAt: Type.String({ format: 'date-time' }),
     updatedAt: Type.String({ format: 'date-time' }),
   }),
@@ -73,13 +76,16 @@ export const catalogRoutes: FastifyPluginAsyncTypebox<{ db: Db }> = async (app, 
           q: Type.Optional(Type.String({ maxLength: 100 })),
           type: Type.Optional(PositionTypeSchema),
           includeInactive: Type.Optional(Type.Boolean({ default: false })),
+          /** FR-MCP-10 filter "Von KI erstellt". */
+          aiCreated: Type.Optional(Type.Boolean({ default: false })),
         }),
         response: { 200: Type.Array(CatalogItemSchema), ...errorResponses(400, 401, 403) },
       },
     },
     async (request) => {
-      const { q, type, includeInactive } = request.query;
+      const { q, type, includeInactive, aiCreated } = request.query;
       return searchCatalog(db, {
+        ...(aiCreated !== undefined ? { aiCreated } : {}),
         ...(q !== undefined ? { q } : {}),
         ...(type !== undefined ? { type } : {}),
         ...(includeInactive !== undefined ? { includeInactive } : {}),
@@ -117,6 +123,25 @@ export const catalogRoutes: FastifyPluginAsyncTypebox<{ db: Db }> = async (app, 
       if (problem) return reply.code(400).send(problem);
       const id = await insertCatalogItem(db, item, currentAuth(request).user.id);
       return reply.code(201).send((await findCatalogItem(db, id))!);
+    },
+  );
+
+  app.post(
+    '/catalog/:id/reviewed',
+    {
+      schema: {
+        summary: 'Confirm an AI-created catalogue item ("Geprüft", FR-MCP-10)',
+        tags: ['catalog'],
+        params: IdParamsSchema,
+        response: { 200: CatalogItemSchema, ...errorResponses(401, 403, 404) },
+      },
+    },
+    async (request, reply) => {
+      const { id } = request.params;
+      if (!(await markCatalogItemReviewed(db, id, currentAuth(request).user.id))) {
+        return reply.code(404).send(notFound);
+      }
+      return (await findCatalogItem(db, id))!;
     },
   );
 

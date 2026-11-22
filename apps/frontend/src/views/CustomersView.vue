@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { api, type Customer, type CustomerPage } from '../api';
 import { useDebounced } from '../composables/useDebounced';
+import AiBadge from '../components/AiBadge.vue';
 import { useErrorText } from '../i18n';
 
 /** FR-CUST-01/02: customer list with search as you type. */
@@ -13,6 +14,8 @@ const errorText = useErrorText();
 const PAGE_SIZE = 50;
 const query = ref('');
 const includeArchived = ref(false);
+/** FR-MCP-10 filter "Von KI erstellt". */
+const aiCreated = ref(false);
 const debounced = useDebounced(query);
 const items = ref<Customer[]>([]);
 const total = ref(0);
@@ -28,6 +31,7 @@ async function load(append = false): Promise<void> {
     limit: String(PAGE_SIZE),
     offset: String(append ? items.value.length : 0),
     includeArchived: String(includeArchived.value),
+    aiCreated: String(aiCreated.value),
   });
   try {
     const page = await api.get<CustomerPage>(`customers?${params}`);
@@ -41,7 +45,7 @@ async function load(append = false): Promise<void> {
   }
 }
 
-watch([debounced, includeArchived], () => void load(), { immediate: true });
+watch([debounced, includeArchived, aiCreated], () => void load(), { immediate: true });
 </script>
 
 <template>
@@ -68,10 +72,14 @@ watch([debounced, includeArchived], () => void load(), { immediate: true });
       <input v-model="includeArchived" type="checkbox" />
       {{ t('customers.showArchived') }}
     </label>
+    <label class="checkbox">
+      <input v-model="aiCreated" type="checkbox" />
+      {{ t('ai.filter') }}
+    </label>
 
     <p v-if="error" class="alert" role="alert">{{ error }}</p>
     <p v-else-if="!loading && items.length === 0" class="hint">
-      {{ query.trim().length >= 2 ? t('common.noResults') : t('customers.empty') }}
+      {{ query.trim().length >= 2 || aiCreated ? t('common.noResults') : t('customers.empty') }}
     </p>
 
     <ul class="list" :aria-busy="loading">
@@ -94,6 +102,7 @@ watch([debounced, includeArchived], () => void load(), { immediate: true });
             <span v-if="customer.archived" class="badge badge--danger">
               {{ t('customers.archivedBadge') }}
             </span>
+            <AiBadge v-if="customer.aiCreated" />
           </span>
         </RouterLink>
       </li>

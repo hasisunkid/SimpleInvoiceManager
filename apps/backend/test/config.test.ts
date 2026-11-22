@@ -18,6 +18,8 @@ describe('loadConfig (AR-16)', () => {
     expect(config.logLevel).toBe('info');
     expect(config.seedDemo).toBe(false);
     expect(config.version).toBe('dev');
+    expect(config.mcpEnabled).toBe(false);
+    expect(config.publicUrl).toBe('');
     expect(warnings).toEqual([]);
   });
 
@@ -47,6 +49,16 @@ describe('loadConfig (AR-16)', () => {
   it('takes the version from APP_VERSION (AR-26)', () => {
     expect(loadConfig({ ...base, APP_VERSION: '0.8.0' }).config.version).toBe('0.8.0');
     expect(() => loadConfig({ ...base, APP_VERSION: '<script>' })).toThrow(/APP_VERSION/);
+  });
+
+  it('enables the MCP server only explicitly and validates PUBLIC_URL (FR-MCP-12)', () => {
+    expect(loadConfig({ ...base, MCP_ENABLED: 'true' }).config.mcpEnabled).toBe(true);
+    expect(loadConfig({ ...base, MCP_ENABLED: '1' }).config.mcpEnabled).toBe(false);
+    expect(loadConfig({ ...base, PUBLIC_URL: 'https://r.example.de' }).config.publicUrl).toBe(
+      'https://r.example.de/',
+    );
+    expect(() => loadConfig({ ...base, PUBLIC_URL: 'javascript:alert(1)' })).toThrow(/PUBLIC_URL/);
+    expect(() => loadConfig({ ...base, PUBLIC_URL: 'not a url' })).toThrow(/PUBLIC_URL/);
   });
 
   it('generates a temporary session secret with a warning when none is set', () => {
