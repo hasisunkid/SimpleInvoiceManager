@@ -1,6 +1,6 @@
 {
   "name": "@sim/ha-app",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "private": true,
   "description": "SimpleInvoice Manager – Home Assistant App. Changesets versions this package; its version is the product version (config.yaml, image tags, UI).",
   "license": "MIT"
