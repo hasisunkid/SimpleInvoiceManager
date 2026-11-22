@@ -30,6 +30,8 @@ The application runs as a **Home Assistant App** (formerly "add-on") and uses th
 | D5 | Full legal compliance (GoBD etc.) is **not** a goal; reasonable, cheap safeguards (immutable finalized invoices, gap-free numbering) **are** required. |
 | D6 | **Logo and invoice style are Admin-only** (resolves the conflict between FR 2.2 and user story #2). |
 | D7 | **Normal users may cancel (storno) invoices** – no admin role required (FR-INV-13). Confirmed 2026-11-19. |
+| D8 | **MCP server (§4.10) confirmed** 2026-11-22: every user may use it with an own API token; remote clients via Streamable HTTP only (no stdio bridge); personal API tokens (no OAuth in v1.1). **Lookup rule:** the LLM uses a *similar* existing customer / catalogue entry if one is found; only if nothing similar exists, a new one is created automatically and marked as AI-created. The invoice stays a draft, so a human checks and corrects everything before finalizing. |
+| D9 | **Release notes with Changesets (§3.4) confirmed** 2026-11-22: release notes are written in **English**; releases go through the automated **"Version Packages" pull request**; the running **version is visible in the UI**. |
 
 ### 1.3 Out of scope for v1 (roadmap, design must not block these)
 
@@ -40,6 +42,8 @@ The application runs as a **Home Assistant App** (formerly "add-on") and uses th
 - Quotes (Angebote), dunning (Mahnungen), DATEV export
 - Multiple currencies (EUR only)
 - Receiving / parsing incoming e-invoices
+- **MCP server for AI assistants** (LLM creates invoice *drafts*, §4.10) → **v1.1 – confirmed (D8), milestone M9**
+- **Automated release notes with Changesets** (§3.4) → **next milestone (M10) – confirmed (D9)**
 
 ---
 
@@ -103,6 +107,30 @@ The application runs as a **Home Assistant App** (formerly "add-on") and uses th
 /e2e                 Playwright tests
 docker-compose.yml
 ```
+
+### 3.4 Release management and release notes (Changesets, confirmed – D9, milestone M10)
+
+> **Goal:** every user-visible change is described when it is made; release notes, version
+> numbers and the Home Assistant changelog are then generated automatically instead of being
+> written by hand at release time.
+
+| ID | Requirement |
+|---|---|
+| **AR-20** | The repository uses **[Changesets](https://github.com/changesets/changesets)** (`@changesets/cli`) to record changes: every user-visible change (feature, fix, breaking change) comes with a changeset file in `.changeset/` describing it in plain language and its semver bump (patch / minor / major). |
+| **AR-21** | **One product version:** the released unit is the Home Assistant App. `ha-app/` becomes a private workspace package (`package.json`, never published to npm) that Changesets versions; the internal packages (`@sim/*`) are not versioned separately. After `changeset version`, a script syncs the new version into `ha-app/config.yaml` and the release notes into `ha-app/CHANGELOG.md`, the changelog Home Assistant shows on the app page. |
+| **AR-22** | **Automated flow (GitHub Actions, `changesets/action`, D9):** pushes to `main` with pending changesets open or update a **"Version Packages" pull request** containing the version bump, `config.yaml` and the generated changelog. Merging it creates the tag `vX.Y.Z`, which triggers the existing release workflow (images to GHCR) and creates a **GitHub Release** whose text is the changelog entry. No manual version edits or tags. |
+| **AR-23** | **Changelog content:** release notes in **English** (D9), grouped by Major / Minor / Patch changes, written for users (no internal jargon), with links to the commit/PR (`@changesets/changelog-github`). Existing entries (0.7.0) are kept. |
+| **AR-24** | **CI guard:** a check fails when a change to `apps/`, `packages/` or `ha-app/` is pushed or proposed without a changeset (`changeset status`), except for changes explicitly marked as internal (empty changeset via `changeset --empty`). |
+| **AR-25** | `CLAUDE.md` and `README.md` describe the workflow: `npx changeset` after each user-visible change; the implementer (Claude Code) adds changesets for its own milestones. |
+| **AR-26** | **Version visible in the UI (D9):** the running version (e.g. `0.8.0`) is shown on the login screen and on the *Mehr* page, linked to the GitHub release notes of that version, and returned by `GET /api/health` (`version`). Single source of truth is the Changesets-managed version: it is passed into the image at build time (`BUILD_VERSION`), so UI, health endpoint, `config.yaml` and image tag always match; local builds show `dev`. |
+
+**Tests / acceptance**
+
+| ID | Requirement |
+|---|---|
+| **TR-20** | In CI and locally: `changeset version` on a test changeset bumps `ha-app/package.json`, `ha-app/config.yaml` and `ha-app/CHANGELOG.md` consistently (the release workflow's tag check passes). |
+| **TR-22** | The UI shows the version from the build (unit test: version label on login and *Mehr*; integration test: `/api/health` returns the `BUILD_VERSION` of the image; E2E: the version in the UI equals the image tag). |
+| **TR-21** | Acceptance: one real change goes through the flow – changeset → Version PR → merge → tag → images on GHCR → Home Assistant shows the update with the new release notes. |
 
 ---
 
@@ -236,6 +264,57 @@ DRAFT ──finalize / export PDF──► OPEN (waiting for payment) ──mark
 | #6 Export PDF → status "waiting" | FR-INV-11, FR-INV-15 |
 | #7 Admin sets start number | FR-NUM-01..04 |
 | #8 Date set automatically, editable | FR-INV-02 |
+| #9 Dictate an invoice to an AI assistant ("Write a new invoice to customer X with positions …") – always as draft | FR-MCP-01..12 |
+
+
+### 4.10 MCP server – AI assistants create invoice drafts (US #9, v1.1, confirmed – D8)
+
+> **Status:** confirmed 2026-11-22 (decision D8).
+> **Goal:** an LLM client (Claude Code and other remote-capable MCP clients) connects to the app
+> and creates invoices from a natural-language request such as *"Write a new invoice to
+> Omicronservice: 3 hours plastering at 48 €, material lump sum 640 €"*. The customer and the
+> positions are looked up; similar existing entries are preferred, missing ones are created and
+> marked as AI-created. **The LLM can only ever create and change
+> drafts** – finalizing, numbering, payment and cancellation stay with humans in the app.
+
+**Example flow (what the LLM does with the tools):**
+
+```
+User: "Write a new invoice to Omicronservice for the renovation: 3 h plastering at 48 €,
+       material lump sum 640 €, service 13.–17.05."
+LLM → create_invoice_draft(customer "Omicronservice", positions …, servicePeriod …)
+      server: customer → similar "Omicronservice GmbH" found → reused (id 12)
+      server: "Material pauschal" → catalogue entry found → reused
+      server: "Putzarbeiten Stunde" → nothing similar → new catalogue entry, marked AI-created
+                                                    → draft #57, totals, missing items: none
+LLM: "Draft #57 for Omicronservice GmbH: 3 h plastering 144,00 € (new catalogue entry),
+      material 640,00 €, total 932,96 € incl. 19 % VAT. Please check it here and create
+      the PDF: <link>"
+```
+
+| ID | Requirement |
+|---|---|
+| **FR-MCP-01** | The app provides an **MCP server** (Model Context Protocol, current spec) implemented in Node/TypeScript with the official SDK, inside the existing backend (same container, same domain package and validation – AR-05). Transport: **Streamable HTTP** at `/mcp` only – no stdio bridge (D8). |
+| **FR-MCP-02** | **Draft-only guarantee:** MCP tools can create and change invoices **only in status `DRAFT`**. There are no MCP tools to finalize, assign numbers, mark paid, cancel, delete finalized invoices, or change users, company settings, style or number range. Enforced on the server (tool set + checks in the domain/service layer), not by prompting. |
+| **FR-MCP-03** | **Authentication:** per-user **API tokens** for MCP, created and revoked by the user in *Profil* (admins can revoke all). Tokens are shown once, stored hashed, carry the scope `mcp:drafts`, an optional expiry and a name ("Claude on laptop"). Every MCP action runs **as that user** (`created_by`/`updated_by`, FR-AUTH-08). Login sessions/cookies are not accepted on `/mcp`. No OAuth in v1.1 (D8). |
+| **FR-MCP-04** | **Tools – lookup (read-only):** `search_customers(query)`, `get_customer(id)`, `search_catalog(query, type?)`, `get_company_defaults()` (tax mode, default VAT rate, payment term, document languages, units), `list_invoices(status?, customer?, query?, limit)` and `get_invoice(id)` (drafts and finalized, read-only). |
+| **FR-MCP-05** | **Customer lookup rule (D8): prefer existing, otherwise create.** Tool `find_or_create_customer` (name, type, contact person, address, e-mail, invoice language): the server first searches **similar** customers (case- and accent-insensitive; company names normalized without legal forms such as GmbH/UG/Sp. z o.o.; same name with same ZIP/city counts as a match; also archived customers are reported but not used). If one or more similar customers exist, the **best match is used** and returned with `matched: true` and the alternatives – no new customer is created. Only if nothing similar exists, a new customer is created with the given data and **marked as AI-created** (FR-MCP-10). The LLM can still look up explicitly with `search_customers` and pass a `customerId`. |
+| **FR-MCP-06** | **Tool `create_invoice_draft`**: customer (id, or the data for `find_or_create_customer`), positions, optional invoice date, service date or period, payment term, document language, subject, site address, intro/closing text. Each position is described by the LLM (title/description, type WORK/MATERIAL, quantity, unit, unit price, VAT rate optional) and resolved with the **catalogue lookup rule** (FR-MCP-08); the values are then **copied** into the invoice (FR-CAT-03). If the user stated a different price or quantity than the catalogue entry, the stated value is used **in this invoice only** – the catalogue entry is not changed. Defaults as in the editor (today, customer language, company texts, FR-INV-02). Returns draft id, for each position whether a catalogue entry was **matched** or **newly created**, line totals, totals (FR-INV-06), the § 14 checklist (FR-INV-07) and a **link to open the draft in the app**. |
+| **FR-MCP-07** | **Tools to refine a draft:** `update_invoice_draft(id, version, changes)`, `add_positions(id, version, positions)`, `remove_position(id, version, index)`, `delete_invoice_draft(id, version)` – drafts only, with the optimistic version check of the editor (409 → the LLM must re-read). |
+| **FR-MCP-08** | **Catalogue lookup rule (D8): prefer existing, otherwise create.** For every position the server searches **similar** active catalogue entries (same type, normalized title/description words, compatible unit). If one is found, it is **used** (`matched: true`, alternatives listed). Only if nothing similar exists, a **new catalogue entry is created** from the position (title, description, type, unit, unit price, VAT rate) and **marked as AI-created**. A separate tool `search_catalog` lets the LLM look up explicitly and pass a `catalogItemId`. |
+| **FR-MCP-09** | **Numbers without floating point (AR-08):** amounts and quantities are passed as **decimal strings** (`"1755.00"`, `"2.5"`) or integer cents/thousandths and parsed by the domain package; invalid values are rejected with a clear message. VAT rate only 19 / 7 / 0; in `SMALL_BUSINESS_19` mode no VAT. Units as the predefined list (FR-CAT-02). |
+| **FR-MCP-10** | **AI-created marker (D8):** drafts, customers **and catalogue entries** created via MCP are marked (`created_via = MCP`, token name, time) and shown with a badge **"Von KI erstellt"** in lists, the editor, the customer page and the catalogue, plus a filter "Von KI erstellt" in each list. The marker stays until a human edits and saves the record or confirms it ("Geprüft"); finalizing an invoice also clears the invoice's marker. Every MCP tool call is logged (user, token, tool, affected ids – no full prompts). |
+| **FR-MCP-11** | **Tool descriptions** are written for LLMs (English, precise, with examples) and state the draft-only rule, the lookup-first workflow and the number formats. Optional **MCP prompt** `create_invoice` that guides the LLM through *lookup customer → lookup/collect positions → create draft → summarize and link*. |
+| **FR-MCP-12** | **Reachability:** Home Assistant Ingress requires a browser login, which MCP clients cannot do. The MCP endpoint is therefore served on the **direct port** (AR-14) and must be put behind HTTPS (HA remote access via own reverse proxy / Cloudflare tunnel, or local network only). The MCP server can be switched off completely (app option `mcp_enabled`, default **off**). |
+
+**Non-functional / tests for the MCP server**
+
+| ID | Requirement |
+|---|---|
+| **NFR-MCP-01** | Rate limit per token (e.g. 60 tool calls/min); request size limits; a token cannot reach any non-MCP API route. |
+| **NFR-MCP-02** | Prompt-injection safety by design: tool results are data; no tool can escalate beyond drafts, so a manipulated customer name or catalogue text cannot cause a finalized invoice, payment or settings change. |
+| **TR-MCP-01** | Integration tests with an MCP client (SDK) against the real backend + MariaDB: list tools (no finalize/pay/cancel tools); full flow "customer by name → draft with positions → totals correct"; **lookup rule**: a similar customer (other spelling, accents, legal form) and a similar catalogue entry are **reused**, unknown ones are **created and marked AI-created**; a stated price overrides the catalogue price only in the invoice; version conflict; token scope/expiry/revocation; draft-only enforcement (attempts to change a finalized invoice fail). |
+| **TR-MCP-02** | Manual acceptance with Claude Desktop/Claude Code: the example flow above produces a correct draft that a human finalizes in the app. |
 
 ---
 
@@ -313,6 +392,10 @@ invoice_position(id, invoice_id, sort_order, type[WORK|MATERIAL], description,
 invoice_status_history(id, invoice_id, from_status, to_status, user_id, at, note)
 
 stored_file(id, kind[LOGO|INVOICE_PDF], path, mime_type, size, sha256, created_at)
+
+-- v1.1 MCP (§4.10, D8):
+api_token(id, user_id, name, token_hash, scopes, expires_at, last_used_at, revoked_at, created_at)
+-- invoice / customer / catalog_item: created_via[UI|MCP] default UI, created_via_token_id NULL, ai_reviewed_at NULL
 ```
 
 ---
@@ -348,6 +431,8 @@ Each milestone ends with green tests, an updated README and a short demo note. D
 | M6 | Lifecycle & overview | FR-INV-10, -13, -14, -20..22 | E2E TR-06 passes |
 | M7 | Home Assistant App | AR-10..16, DOCS.md | Installs from repo URL on HA OS (amd64 + aarch64), works via Ingress with HA MariaDB |
 | M8 | Hardening | NFR-*, export (NFR-DATA-02), security review | All TR green, README complete |
+| M9 | MCP server (v1.1, decided – D8) | FR-MCP-*, NFR-MCP-*, API tokens, lookup-or-create rule, "Von KI erstellt" badges and filters | TR-MCP-01 green; TR-MCP-02 accepted by product owner |
+| M10 | Release notes with Changesets (decided – D9) | AR-20..26: Changesets setup, `ha-app` as versioned package, config.yaml/CHANGELOG sync, Version-PR + tag + GitHub Release automation, CI guard, version shown in the UI | TR-20 and TR-22 green; TR-21 done once with a real release |
 
 ---
 
@@ -357,6 +442,12 @@ Each milestone ends with green tests, an updated README and a short demo note. D
 2. Should the invoice also be **sendable by e-mail** (SMTP config by admin)? Currently out of scope.
 3. Is a **quote (Angebot)** that converts into an invoice wanted later? It would reuse the same editor.
 4. ~~Should a **normal user** be allowed to cancel (storno) invoices, or only admins?~~ **Resolved → D7:** all users may cancel.
+5. ~~**MCP – who may use it?**~~ **Resolved → D8:** every user with an own token.
+6. ~~**MCP – which clients?**~~ **Resolved → D8:** Streamable HTTP only, no stdio bridge.
+7. ~~**MCP – authentication:**~~ **Resolved → D8:** personal API tokens.
+8. ~~**MCP – may the LLM create new customers and catalogue items?**~~ **Resolved → D8:** yes – similar existing entries are preferred, otherwise new ones are created and marked AI-created.
+9. ~~**Release notes language?**~~ **Resolved → D9:** English.
+10. ~~**Release flow?**~~ **Resolved → D9:** automated "Version Packages" pull request.
 
 ---
 
