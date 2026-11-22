@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.0
+
+### Minor Changes
+
+- [`d7592ce`](https://github.com/hasisunkid/SimpleInvoiceManager/commit/d7592cedf2dd02be3c2646f1f43385d59a52f29b) Thanks [@hasisunkid](https://github.com/hasisunkid)! - AI assistants such as Claude can now write invoice drafts for you (optional, switched off by
+  default). Create a personal access key under _Mehr → Mein Profil → KI-Zugänge_ and connect your
+  assistant to the app's direct port. The assistant reuses similar existing customers and
+  catalogue entries and only creates new ones when nothing similar exists. Everything it creates
+  is marked "Von KI erstellt" until you check it, and it can never finalize, pay or cancel an
+  invoice. See the documentation for the setup.
+
 ## 0.8.0
 
 ### Minor Changes
