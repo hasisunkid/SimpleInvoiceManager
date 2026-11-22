@@ -7,6 +7,8 @@
 export const de = {
   app: {
     name: 'SimpleInvoice Manager',
+    version: 'Version {version}',
+    releaseNotes: 'Neuerungen in Version {version} (öffnet GitHub)',
   },
   nav: {
     home: 'Start',

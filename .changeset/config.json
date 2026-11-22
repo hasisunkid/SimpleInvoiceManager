@@ -1,0 +1,13 @@
+{
+  "$schema": "../node_modules/@changesets/config/schema.json",
+  "changelog": ["@changesets/changelog-github", { "repo": "hasisunkid/SimpleInvoiceManager" }],
+  "commit": false,
+  "fixed": [],
+  "linked": [],
+  "access": "restricted",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": ["@sim/domain", "@sim/i18n", "@sim/backend", "@sim/frontend"],
+  "privatePackages": { "version": true, "tag": false },
+  "format": "prettier"
+}

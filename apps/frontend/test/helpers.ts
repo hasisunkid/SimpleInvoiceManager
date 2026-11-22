@@ -32,6 +32,12 @@ export function user(overrides: Partial<PublicUser> = {}): PublicUser {
 }
 
 export const healthOk = () => ({
-  body: { status: 'ok', database: true, migrations: { applied: 2, pending: 0 } },
+  body: {
+    status: 'ok',
+    database: true,
+    migrations: { applied: 2, pending: 0 },
+    version: '0.8.0',
+    releaseNotesUrl: 'https://github.com/hasisunkid/SimpleInvoiceManager/releases/tag/v0.8.0',
+  },
 });
 export const noSession = () => ({ body: { user: null, csrfToken: null } });

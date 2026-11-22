@@ -123,7 +123,7 @@ export async function buildApp({
   await app.register(
     async (api) => {
       registerAuthGuard(api, sessions);
-      await api.register(healthRoutes, { db });
+      await api.register(healthRoutes, { db, version: config.version });
       await api.register(authRoutes, { db, sessions, rateLimiter });
       await api.register(meRoutes, { db, sessions });
       await api.register(userRoutes, { db, sessions });

@@ -11,5 +11,6 @@ docs
 e2e
 ha-app/*
 !ha-app/run.sh
+!ha-app/package.json
 test-results
 playwright-report

@@ -28,6 +28,9 @@ services:
       context: .
       dockerfile: docker/Dockerfile
       target: runtime
+      args:
+        # AR-26: shown in the UI and /api/health; `dev` unless set.
+        BUILD_VERSION: ${BUILD_VERSION:-dev}
     image: simpleinvoice-manager:dev
     restart: unless-stopped
     depends_on:

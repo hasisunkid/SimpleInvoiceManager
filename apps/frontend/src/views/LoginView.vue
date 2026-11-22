@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import type { Language } from '@sim/i18n';
 import { api, type Health } from '../api';
+import AppVersion from '../components/AppVersion.vue';
 import LanguageSelect from '../components/LanguageSelect.vue';
 import { applyLanguage, applyUserLanguage, useErrorText } from '../i18n';
 import { login } from '../session';
@@ -19,6 +20,7 @@ const stayLoggedIn = ref(true);
 const busy = ref(false);
 const error = ref('');
 const serverUnreachable = ref(false);
+const health = ref<Health | null>(null);
 
 function changeLanguage(language: Language | null): void {
   if (language) applyLanguage(locale, language);
@@ -43,8 +45,9 @@ async function submit(): Promise<void> {
 
 onMounted(async () => {
   try {
-    const health = await api.get<Health>('health');
-    serverUnreachable.value = health.status !== 'ok';
+    // The health endpoint also answers 503 with a body; api.get throws then.
+    health.value = await api.get<Health>('health');
+    serverUnreachable.value = health.value.status !== 'ok';
   } catch {
     serverUnreachable.value = true;
   }
@@ -105,5 +108,10 @@ onMounted(async () => {
         @update:model-value="changeLanguage"
       />
     </footer>
+    <AppVersion
+      v-if="health"
+      :version="health.version"
+      :release-notes-url="health.releaseNotesUrl"
+    />
   </main>
 </template>

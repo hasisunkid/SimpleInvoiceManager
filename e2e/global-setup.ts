@@ -15,6 +15,7 @@ function compose(...args: string[]): void {
       DB_PUBLISHED_PORT: String(E2E.dbPort),
       INITIAL_ADMIN_PASSWORD: E2E.initialAdminPassword,
       SEED_DEMO: 'true',
+      BUILD_VERSION: E2E.buildVersion,
       SESSION_SECRET: 'e2e-session-secret-0123456789-abcdefgh',
     },
   });

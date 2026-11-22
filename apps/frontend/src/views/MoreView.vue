@@ -1,13 +1,24 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
+import { api, type Health } from '../api';
+import AppVersion from '../components/AppVersion.vue';
 import { logout, session } from '../session';
 
 /** Secondary navigation: keeps the bottom bar at four tabs on small phones (NFR-UX-01). */
 const { t } = useI18n();
 const router = useRouter();
 const isAdmin = computed(() => session.user?.role === 'ADMIN');
+const health = ref<Health | null>(null);
+
+onMounted(async () => {
+  try {
+    health.value = await api.get<Health>('health');
+  } catch {
+    // Version stays hidden while the server is unreachable.
+  }
+});
 
 async function signOut(): Promise<void> {
   await logout().catch(() => {});
@@ -41,5 +52,10 @@ async function signOut(): Promise<void> {
       </li>
     </ul>
     <button type="button" class="secondary" @click="signOut">{{ t('nav.logout') }}</button>
+    <AppVersion
+      v-if="health"
+      :version="health.version"
+      :release-notes-url="health.releaseNotesUrl"
+    />
   </main>
 </template>

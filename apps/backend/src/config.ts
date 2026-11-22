@@ -21,11 +21,16 @@ export interface Config {
   readonly port: number;
   readonly logLevel: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'silent';
   readonly seedDemo: boolean;
+  /** AR-26: product version baked into the image (BUILD_VERSION → APP_VERSION); `dev` locally. */
+  readonly version: string;
 }
 
 export class ConfigError extends Error {
   override readonly name = 'ConfigError';
 }
+
+/** A semver-like version label (e.g. `0.8.0`, `0.8.0-rc.1`) or `dev`. */
+const VERSION_PATTERN = /^[0-9A-Za-z][0-9A-Za-z.+-]{0,63}$/;
 
 const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const;
 
@@ -78,6 +83,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): LoadConfigResu
     throw new ConfigError(`LOG_LEVEL must be one of ${LOG_LEVELS.join(', ')}, got "${logLevel}"`);
   }
 
+  const version = env.APP_VERSION || 'dev';
+  if (!VERSION_PATTERN.test(version)) {
+    throw new ConfigError(`APP_VERSION must be a version such as 0.8.0, got "${version}"`);
+  }
+
   let sessionSecret = env.SESSION_SECRET ?? '';
   if (sessionSecret === '') {
     sessionSecret = randomBytes(32).toString('hex');
@@ -103,6 +113,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): LoadConfigResu
     port: port(env, 'PORT', 8099),
     logLevel: logLevel as Config['logLevel'],
     seedDemo: env.SEED_DEMO === 'true',
+    version,
   };
   return { config, warnings };
 }

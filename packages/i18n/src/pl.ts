@@ -3,6 +3,8 @@ import type { Messages } from './types.js';
 export const pl: Messages = {
   app: {
     name: 'SimpleInvoice Manager',
+    version: 'Wersja {version}',
+    releaseNotes: 'Nowości w wersji {version} (otwiera GitHub)',
   },
   nav: {
     home: 'Start',

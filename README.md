@@ -4,7 +4,8 @@ Small web app for tradespeople (Handwerker) to write, manage and track invoices 
 smartphone. Runs as a **Home Assistant App** on top of the HA MariaDB app, or standalone with
 Docker Compose. Requirements: [.claude/REQUIREMENTS.md](.claude/REQUIREMENTS.md).
 
-**Status:** v0.7 feature-complete – milestones **M0–M8** done (see [Milestones](#milestones)).
+**Status:** milestones **M0–M8** and **M10** (release notes) done, **M9** (MCP server) next –
+see [Milestones](#milestones).
 
 ## Features
 
@@ -66,6 +67,8 @@ npm run dev:frontend
 | `npm run format`        | Prettier write                                                    |
 | `npm run test:e2e`      | Playwright E2E on a fresh compose stack (phone, desktop, ingress) |
 | `node scripts/perf.mjs` | Performance measurement against a running stack (NFR-PERF-01)     |
+| `npx changeset`         | Describe a user-visible change for the release notes (AR-20)      |
+| `npm run release:check` | ha-app version, `config.yaml` and changelog agree (TR-20)         |
 
 To run integration tests against an already running MariaDB instead of a container:
 `TEST_DB_HOST=127.0.0.1 TEST_DB_USER=root TEST_DB_PASSWORD=root npm test`.
@@ -86,6 +89,7 @@ The app is configured **only** through environment variables. In Home Assistant 
 | `PORT`                    | `8099`          | HTTP port                                                   |
 | `LOG_LEVEL`               | `info`          | `fatal` … `trace`, `silent`                                 |
 | `SEED_DEMO`               | `false`         | Demo customers/catalogue for an empty installation          |
+| `APP_VERSION`             | `dev`           | Set by the image build (`BUILD_VERSION`), shown in the UI   |
 
 ## Architecture
 
@@ -121,7 +125,7 @@ Design decisions: [docs/adr/](docs/adr/).
 | Security                          | [docs/security.md](docs/security.md) – review against NFR-SEC-01; every endpoint's access rule is checked by a test.                                                                                                                                                                                                            |
 | Performance                       | [docs/performance.md](docs/performance.md) – p95 ≤ 22 ms with 5 000 invoices, 3-page PDF < 1 s, 78–129 MiB memory (1 CPU / 512 MB container).                                                                                                                                                                                   |
 | Backups                           | Home Assistant backup of **both** apps (MariaDB + SimpleInvoice Manager); in addition _Mehr → Verwaltung → Datensicherung_ downloads all data (JSON) and all PDFs (ZIP).                                                                                                                                                        |
-| Releases                          | [docs/ha-release.md](docs/ha-release.md) – tag `vX.Y.Z` publishes the HA images; acceptance checklist for HA OS.                                                                                                                                                                                                                |
+| Releases                          | [docs/ha-release.md](docs/ha-release.md) – Changesets: `npx changeset` per change, merge the "Version Packages" PR to release (tag, images, GitHub Release); acceptance checklist for HA OS.                                                                                                                                    |
 | Open points for the product owner | Requirements §10: § 13b reverse charge and partial invoices (v1.1), e-mail sending, quotes.                                                                                                                                                                                                                                     |
 
 ## Milestones
@@ -136,10 +140,14 @@ Design decisions: [docs/adr/](docs/adr/).
 | M5  | PDF                          | ✅ done  |
 | M6  | Lifecycle & overview (+ E2E) | ✅ done  |
 | M7  | Home Assistant App           | ✅ done¹ |
-| M8  | Hardening                    | next     |
+| M8  | Hardening                    | ✅ done  |
+| M9  | MCP server (v1.1)            | next     |
+| M10 | Release notes (Changesets)   | ✅ done² |
 
 ¹ Verified in a local HA simulation; installation on real HA OS (amd64 + aarch64) is the
 acceptance step in [docs/ha-release.md](docs/ha-release.md).
+² TR-21 (one real release through the whole flow) happens with the first merge of the
+"Version Packages" pull request.
 
 ### M0 demo note
 
@@ -252,3 +260,14 @@ one printed once in the log) and forces a password change at first login. Afterw
   cleaned up automatically; the Node heap is capped for small devices.
 - No WCAG 2.1 A/AA violations on the main screens (axe, phone and desktop); performance measured
   with 5 000 invoices on a container limited to 1 CPU / 512 MB – see docs/performance.md.
+
+### M10 demo note
+
+- Every user-visible change now comes with a changeset (`npx changeset`): a short English text
+  for users and the kind of change (fix / feature / breaking). CI refuses changes to the app
+  without one.
+- On every push to `main`, GitHub keeps a **"Version Packages"** pull request up to date: new
+  version, `ha-app/config.yaml` and the release notes in `ha-app/CHANGELOG.md` (the changelog
+  Home Assistant shows). Merging it tags `vX.Y.Z`, publishes the images and a GitHub Release.
+- The running version is shown on the login screen and on _Mehr_ (linked to its release notes)
+  and returned by `/api/health`; local builds show `dev`.

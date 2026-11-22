@@ -5,7 +5,21 @@ export default defineConfig({
   resolve: { conditions: ['source'] },
   ssr: { resolve: { conditions: ['source'] } },
   test: {
-    projects: ['packages/domain', 'packages/i18n', 'apps/backend', 'apps/frontend'],
+    projects: [
+      'packages/domain',
+      'packages/i18n',
+      'apps/backend',
+      'apps/frontend',
+      // Release tooling (AR-20..AR-24, TR-20).
+      {
+        test: {
+          name: 'release',
+          include: ['scripts/**/*.test.mjs'],
+          environment: 'node',
+          testTimeout: 60_000,
+        },
+      },
+    ],
     coverage: {
       provider: 'v8',
       include: ['packages/domain/src/**'],

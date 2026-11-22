@@ -25,10 +25,39 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      # TR-20: ha-app/package.json, config.yaml and CHANGELOG.md agree.
+      - run: npm run release:check
       # NFR-SEC-01: known vulnerabilities in production dependencies fail the build.
       - run: npm audit --omit=dev --audit-level=high
       # Integration tests start MariaDB via Testcontainers (Docker is available on the runner).
       - run: npm run test:coverage
+
+  changeset:
+    name: Changeset present (AR-24)
+    runs-on: ubuntu-latest
+    # The "Version Packages" branch consumes changesets on purpose.
+    if: github.head_ref != 'changeset-release/main' && github.ref_name != 'changeset-release/main'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+      - name: Changes to apps/, packages/ or ha-app/ come with a changeset
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT" = pull_request ]; then
+            base="origin/$BASE_REF"
+          elif [ -z "$BEFORE" ] || [ "$BEFORE" = 0000000000000000000000000000000000000000 ]; then
+            base=origin/main
+          else
+            base="$BEFORE"
+          fi
+          node scripts/release.mjs guard "$base"
 
   ha-app:
     name: Home Assistant App lint (AR-11)

@@ -11,7 +11,8 @@
     "packages/domain",
     "packages/i18n",
     "apps/backend",
-    "apps/frontend"
+    "apps/frontend",
+    "ha-app"
   ],
   "scripts": {
     "build": "tsc -b packages/domain packages/i18n apps/backend && npm run build -w @sim/frontend",
@@ -23,10 +24,15 @@
     "test:e2e": "playwright test -c e2e/playwright.config.ts",
     "dev:backend": "npm run dev -w @sim/backend",
     "dev:frontend": "npm run dev -w @sim/frontend",
-    "clean": "rm -rf apps/*/dist packages/*/dist **/*.tsbuildinfo"
+    "clean": "rm -rf apps/*/dist packages/*/dist **/*.tsbuildinfo",
+    "changeset": "changeset",
+    "version-packages": "changeset version && node scripts/release.mjs sync && npm install --package-lock-only --ignore-scripts --no-audit --no-fund && prettier --write ha-app/CHANGELOG.md ha-app/config.yaml",
+    "release:check": "node scripts/release.mjs check"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
+    "@changesets/changelog-github": "^1.0.1",
+    "@changesets/cli": "^3.0.3",
     "@eslint/js": "^9.39.0",
     "@playwright/test": "^1.65.1",
     "@types/node": "^24.0.0",

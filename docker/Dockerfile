@@ -12,6 +12,7 @@ COPY packages/domain/package.json packages/domain/
 COPY packages/i18n/package.json packages/i18n/
 COPY apps/backend/package.json apps/backend/
 COPY apps/frontend/package.json apps/frontend/
+COPY ha-app/package.json ha-app/
 RUN npm ci --no-audit --no-fund
 
 COPY tsconfig.base.json ./
@@ -45,6 +46,11 @@ RUN mkdir -p /data && chown node:node /data
 VOLUME /data
 USER node
 EXPOSE 8099
+
+# AR-26: the product version (Changesets-managed, = image tag) is passed in by the release
+# workflow; local builds report `dev`. Declared late so a new version does not bust the cache.
+ARG BUILD_VERSION=dev
+ENV APP_VERSION=${BUILD_VERSION}
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD wget -qO- "http://127.0.0.1:${PORT}/api/health" >/dev/null || exit 1

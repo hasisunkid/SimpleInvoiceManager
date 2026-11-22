@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ConfigError, loadConfig } from '../src/config.js';
 import { sanitizeIngressPath } from '../src/app.js';
+import { releaseNotesUrl } from '../src/version.js';
 
 const base = { DB_HOST: 'db', DB_USER: 'u', SESSION_SECRET: 's'.repeat(32) };
 
@@ -16,6 +17,7 @@ describe('loadConfig (AR-16)', () => {
     expect(config.port).toBe(8099);
     expect(config.logLevel).toBe('info');
     expect(config.seedDemo).toBe(false);
+    expect(config.version).toBe('dev');
     expect(warnings).toEqual([]);
   });
 
@@ -42,6 +44,11 @@ describe('loadConfig (AR-16)', () => {
     expect(() => loadConfig({ ...base, SESSION_SECRET: 'short' })).toThrow(/32/);
   });
 
+  it('takes the version from APP_VERSION (AR-26)', () => {
+    expect(loadConfig({ ...base, APP_VERSION: '0.8.0' }).config.version).toBe('0.8.0');
+    expect(() => loadConfig({ ...base, APP_VERSION: '<script>' })).toThrow(/APP_VERSION/);
+  });
+
   it('generates a temporary session secret with a warning when none is set', () => {
     const { config, warnings } = loadConfig({ DB_HOST: 'db', DB_USER: 'u' });
     expect(config.sessionSecret).toHaveLength(64);
@@ -61,4 +68,17 @@ describe('sanitizeIngressPath (AR-13)', () => {
       expect(sanitizeIngressPath(value)).toBe('');
     },
   );
+});
+
+describe('releaseNotesUrl (AR-26)', () => {
+  it('links release versions to their GitHub release', () => {
+    expect(releaseNotesUrl('0.8.0')).toBe(
+      'https://github.com/hasisunkid/SimpleInvoiceManager/releases/tag/v0.8.0',
+    );
+    expect(releaseNotesUrl('1.0.0-rc.1')).toMatch(/\/v1\.0\.0-rc\.1$/);
+  });
+
+  it('has no link for local builds', () => {
+    expect(releaseNotesUrl('dev')).toBeNull();
+  });
 });

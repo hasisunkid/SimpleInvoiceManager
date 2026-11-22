@@ -39,6 +39,9 @@ export interface Health {
   status: 'ok' | 'error';
   database: boolean;
   migrations: { applied: number; pending: number };
+  /** AR-26: running version (`dev` for local builds) and its GitHub release notes. */
+  version: string;
+  releaseNotesUrl: string | null;
 }
 
 /** Error with the server's machine-readable code (translated via `errors.<code>`). */

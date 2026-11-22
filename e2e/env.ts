@@ -8,6 +8,8 @@ export const E2E = {
   ingressPath: '/api/hassio_ingress/abc123',
   initialAdminPassword: 'e2e-initial-admin-pw',
   adminPassword: 'e2e-admin-password-1',
+  /** AR-26 / TR-22: built into the image as BUILD_VERSION; the UI must show exactly this. */
+  buildVersion: process.env.E2E_BUILD_VERSION ?? '0.0.0-e2e',
 };
 
 export const appUrl = `http://localhost:${E2E.appPort}/`;

@@ -34,7 +34,22 @@ describe('GET /api/health (AR-18) against a real MariaDB', () => {
       status: 'ok',
       database: true,
       migrations: { applied: applied.length, pending: 0 },
+      version: 'dev',
+      releaseNotesUrl: null,
     });
+  });
+
+  it('returns the build version of the image (AR-26, TR-22)', async () => {
+    const versioned = await buildApp({ config: { ...t.config, version: '0.8.0' }, db: t.db });
+    try {
+      const res = await versioned.inject({ method: 'GET', url: '/api/health' });
+      expect(res.json()).toMatchObject({
+        version: '0.8.0',
+        releaseNotesUrl: 'https://github.com/hasisunkid/SimpleInvoiceManager/releases/tag/v0.8.0',
+      });
+    } finally {
+      await versioned.close();
+    }
   });
 
   it('migrations are idempotent (NFR-OPS-01)', async () => {
@@ -66,7 +81,7 @@ describe('GET /api/health (AR-18) against a real MariaDB', () => {
     try {
       const res = await brokenApp.inject({ method: 'GET', url: '/api/health' });
       expect(res.statusCode).toBe(503);
-      expect(res.json()).toMatchObject({ status: 'error', database: false });
+      expect(res.json()).toMatchObject({ status: 'error', database: false, version: 'dev' });
     } finally {
       await brokenApp.close();
       await broken.destroy();

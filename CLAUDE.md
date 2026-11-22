@@ -22,6 +22,16 @@ SimpleInvoice Manager – invoice web app for tradespeople, packaged as a Home A
 
 Before reporting work as done: `npm run lint && npm run typecheck && npm test` must pass.
 
+## Release notes (Changesets, AR-20..26)
+
+- After each user-visible change run `npx changeset` (package `@sim/ha-app`, the only versioned
+  package; patch = fix, minor = feature, major = breaking) and write the text **in English, for
+  users** – no internal jargon. Internal-only changes: `npx changeset --empty`. CI fails on
+  changes to `apps/`, `packages/` or `ha-app/` without one. Add changesets for your milestones.
+- Never edit versions, `ha-app/config.yaml` `version:` or `ha-app/CHANGELOG.md` by hand and never
+  push tags: merging the "Version Packages" PR releases (docs/ha-release.md).
+- The version reaches the app only via `BUILD_VERSION` → `APP_VERSION` (`config.version`).
+
 ## Conventions
 
 - ESM everywhere, TypeScript strict. No `any` in `packages/domain`.
