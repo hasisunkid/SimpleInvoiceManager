@@ -12,6 +12,7 @@ import type { Config } from './config.js';
 import type { Db } from './db.js';
 import { handleError } from './errors.js';
 import { registerSecurityHeaders } from './security-headers.js';
+import { API_REQUESTS_PER_MINUTE, registerRateLimit } from './rate-limit.js';
 import { registerAuthGuard } from './auth/guard.js';
 import { createLoginRateLimiter, type LoginRateLimiter } from './auth/rate-limiter.js';
 import { SessionStore } from './auth/sessions.js';
@@ -60,6 +61,8 @@ export interface AppDeps {
   readonly rateLimiter?: LoginRateLimiter;
   /** AR-06: injectable invoice renderer (default: pdfmake). */
   readonly renderer?: InvoiceRenderer;
+  /** Requests per client and minute on /api and /mcp (tests lower it). */
+  readonly apiRateLimit?: number;
 }
 
 /** Accepts only a plain absolute path from the ingress header – never a URL. */
@@ -75,6 +78,7 @@ export async function buildApp({
   logger = false,
   rateLimiter = createLoginRateLimiter(),
   renderer = new PdfMakeInvoiceRenderer(),
+  apiRateLimit = API_REQUESTS_PER_MINUTE,
 }: AppDeps): Promise<FastifyInstance> {
   const app = Fastify({
     logger,
@@ -105,6 +109,8 @@ export async function buildApp({
   app.setErrorHandler<FastifyError>(handleError);
 
   await app.register(fastifyCookie);
+  // NFR-SEC-01: general per-client request limit for /api and /mcp (needs the cookie parser).
+  await registerRateLimit(app, apiRateLimit);
   await app.register(fastifySwagger, {
     openapi: {
       openapi: '3.0.3',

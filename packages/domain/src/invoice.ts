@@ -132,11 +132,18 @@ export function customerShortName(buyer: {
 
 /** Keeps letters (incl. ä, ł …), digits, "-" and "."; everything else becomes "-". */
 function safeFilePart(value: string): string {
-  return value
+  const cleaned = value
     .normalize('NFC')
     .replace(/[^\p{L}\p{N}.-]+/gu, '-')
-    .replace(/-{2,}/g, '-')
-    .replace(/^[-.]+|[-.]+$/g, '');
+    .replace(/-{2,}/g, '-');
+  // Trim "-" and "." at both ends with index scans – a regex like /[-.]+$/ backtracks
+  // quadratically on long runs of "-" (ReDoS).
+  const edge = (ch: string | undefined) => ch === '-' || ch === '.';
+  let from = 0;
+  let to = cleaned.length;
+  while (from < to && edge(cleaned[from])) from++;
+  while (to > from && edge(cleaned[to - 1])) to--;
+  return cleaned.slice(from, to);
 }
 
 /**

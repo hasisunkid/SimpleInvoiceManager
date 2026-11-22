@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { buildApp } from '../src/app.js';
 import { CONTENT_SECURITY_POLICY } from '../src/security-headers.js';
 import { createTestApp, type TestApp } from './helpers/setup.js';
 import { TestClient } from './helpers/client.js';
@@ -97,5 +98,45 @@ describe('secure headers (NFR-SEC-01)', () => {
     const res = await ctx.user.get('/api/invoices/not-a-number');
     expect(res.statusCode).toBe(400);
     expect(res.body).not.toMatch(/stack|at \w+ \(|node_modules/);
+  });
+});
+
+describe('general request limit (NFR-SEC-01)', () => {
+  it('limits each session separately and answers in the API error format', async () => {
+    const app = await buildApp({ config: ctx.t.config, db: ctx.t.db, apiRateLimit: 3 });
+    try {
+      const login = async (username: string, password: string) => {
+        const client = new TestClient(app);
+        expect((await client.login(username, password)).statusCode).toBe(200);
+        return client;
+      };
+      const anna = await login('worker', 'worker-password-final');
+      const admin = await login('admin', 'admin-password-final');
+      // Login counted as anonymous (IP); from now on each session has its own budget.
+      const statuses = [];
+      for (let i = 0; i < 4; i++) statuses.push((await anna.get('/api/customers')).statusCode);
+      expect(statuses).toEqual([200, 200, 200, 429]);
+      const limited = await anna.get('/api/customers');
+      expect(limited.json()).toMatchObject({ error: 'TOO_MANY_REQUESTS' });
+      expect(Number(limited.headers['retry-after'])).toBeGreaterThan(0);
+      // Another person behind the same (Ingress) address is not affected.
+      expect((await admin.get('/api/customers')).statusCode).toBe(200);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('does not count static files', async () => {
+    const app = await buildApp({ config: ctx.t.config, db: ctx.t.db, apiRateLimit: 1 });
+    try {
+      for (let i = 0; i < 3; i++) {
+        const res = await app.inject({ method: 'GET', url: '/index.html' });
+        expect(res.statusCode).not.toBe(429);
+      }
+      expect((await app.inject({ method: 'GET', url: '/api/health' })).statusCode).not.toBe(429);
+      expect((await app.inject({ method: 'GET', url: '/api/health' })).statusCode).toBe(429);
+    } finally {
+      await app.close();
+    }
   });
 });

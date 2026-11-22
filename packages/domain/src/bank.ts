@@ -74,3 +74,13 @@ export function isValidTaxNumber(taxNumber: string): boolean {
   const digits = value.replace(/\D/g, '').length;
   return digits >= 10 && digits <= 13;
 }
+
+/**
+ * Plausible e-mail address: local part, "@", domain with at least one dot. The domain is
+ * matched label by label ("[^.]+(\.[^.]+)+"), so the pattern cannot backtrack (ReDoS-safe).
+ */
+const EMAIL = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
+
+export function isValidEmail(email: string): boolean {
+  return email.length <= 254 && EMAIL.test(email);
+}

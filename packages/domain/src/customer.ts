@@ -1,5 +1,5 @@
 import type { DocumentLanguage } from './money.js';
-import { isValidVatId } from './bank.js';
+import { isValidEmail, isValidVatId } from './bank.js';
 
 /** FR-CUST-01: business customers (B2B) and private customers (B2C, § 35a note on PDF). */
 export const CUSTOMER_TYPES = ['BUSINESS', 'PRIVATE'] as const;
@@ -41,7 +41,7 @@ export function validateCustomer(c: CustomerData): Partial<Record<CustomerField,
   const problems: Partial<Record<CustomerField, CustomerProblem>> = {};
   if (c.type === 'BUSINESS' && !c.companyName.trim()) problems.companyName = 'NAME_REQUIRED';
   if (c.type === 'PRIVATE' && !c.contactPerson.trim()) problems.contactPerson = 'NAME_REQUIRED';
-  if (c.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email.trim())) {
+  if (c.email.trim() && !isValidEmail(c.email.trim())) {
     problems.email = 'INVALID_EMAIL';
   }
   if (c.vatId.trim() && !isValidVatId(c.vatId)) problems.vatId = 'INVALID_VAT_ID';

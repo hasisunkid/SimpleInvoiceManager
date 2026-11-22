@@ -34,8 +34,11 @@ export function setConfigVersion(yaml, version) {
 /** The body of the `## <version>` entry (a heading may continue, e.g. "## 0.7.0 – first …"). */
 export function changelogEntry(markdown, version) {
   const lines = markdown.split('\n');
-  const heading = new RegExp(`^## ${version.replaceAll('.', '\\.')}(\\s|$)`);
-  const start = lines.findIndex((line) => heading.test(line));
+  // Plain string comparison – the version comes from the command line (no RegExp from input).
+  const heading = `## ${version}`;
+  const isHeading = (line) =>
+    line === heading || (line.startsWith(heading) && /\s/.test(line[heading.length]));
+  const start = lines.findIndex(isHeading);
   if (start === -1) return null;
   let end = lines.findIndex((line, i) => i > start && /^## /.test(line));
   if (end === -1) end = lines.length;

@@ -51,6 +51,7 @@ export const en: Messages = {
     serverUnreachable: 'The server cannot be reached. Please try again later.',
   },
   errors: {
+    TOO_MANY_REQUESTS: 'Too many requests in a short time. Please wait a moment and try again.',
     TOKEN_NOT_FOUND: 'This access no longer exists.',
     TOKEN_NAME_REQUIRED: 'Please give the access a name.',
     INVALID_CREDENTIALS: 'Username or password is wrong.',

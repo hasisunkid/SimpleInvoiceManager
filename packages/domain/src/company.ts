@@ -1,5 +1,12 @@
 import type { DocumentLanguage } from './money.js';
-import { formatIban, isValidBic, isValidIban, isValidTaxNumber, isValidVatId } from './bank.js';
+import {
+  formatIban,
+  isValidBic,
+  isValidEmail,
+  isValidIban,
+  isValidTaxNumber,
+  isValidVatId,
+} from './bank.js';
 
 /** FR-COMP-02: VAT is charged (REGULAR) or the business is a Kleinunternehmer (§ 19 UStG). */
 export const TAX_MODES = ['REGULAR', 'SMALL_BUSINESS_19'] as const;
@@ -67,7 +74,7 @@ export function validateCompany(
   if (profile.taxNumber && !isValidTaxNumber(profile.taxNumber)) {
     problems.taxNumber = 'INVALID_TAX_NUMBER';
   }
-  if (profile.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) {
+  if (profile.email && !isValidEmail(profile.email)) {
     problems.email = 'INVALID_EMAIL';
   }
   if (!/^[A-Z]{2}$/.test(profile.countryCode)) problems.countryCode = 'INVALID_COUNTRY';

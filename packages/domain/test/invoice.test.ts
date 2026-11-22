@@ -149,6 +149,15 @@ describe('PDF file names (FR-PDF-04)', () => {
     expect(customerShortName({ ...omicron, name: '', attention: '' })).toBe('');
   });
 
+  it('trims dashes quickly even for long runs (ReDoS)', () => {
+    const name = { type: 'PRIVATE' as const, name: `x${'-'.repeat(50_000)}!`, attention: '' };
+    const start = performance.now();
+    expect(invoiceFileName('Invoice', '--7--', name, '2026-11-21')).toBe(
+      'Invoice_7_x_21.11.2026.pdf',
+    );
+    expect(performance.now() - start).toBeLessThan(200);
+  });
+
   it('removes unsafe characters but keeps Polish and German letters', () => {
     expect(
       invoiceFileName(

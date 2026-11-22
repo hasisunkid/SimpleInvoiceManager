@@ -51,6 +51,7 @@ export const pl: Messages = {
     serverUnreachable: 'Serwer jest niedostępny. Spróbuj ponownie później.',
   },
   errors: {
+    TOO_MANY_REQUESTS: 'Zbyt wiele żądań w krótkim czasie. Odczekaj chwilę i spróbuj ponownie.',
     TOKEN_NOT_FOUND: 'Ten dostęp już nie istnieje.',
     TOKEN_NAME_REQUIRED: 'Podaj nazwę dostępu.',
     INVALID_CREDENTIALS: 'Nieprawidłowa nazwa użytkownika lub hasło.',

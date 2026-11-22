@@ -55,6 +55,8 @@ export const de = {
     serverUnreachable: 'Der Server ist nicht erreichbar. Bitte später erneut versuchen.',
   },
   errors: {
+    TOO_MANY_REQUESTS:
+      'Zu viele Anfragen in kurzer Zeit. Bitte einen Moment warten und erneut versuchen.',
     TOKEN_NOT_FOUND: 'Dieser Zugang existiert nicht mehr.',
     TOKEN_NAME_REQUIRED: 'Bitte einen Namen für den Zugang angeben.',
     INVALID_CREDENTIALS: 'Benutzername oder Passwort ist falsch.',

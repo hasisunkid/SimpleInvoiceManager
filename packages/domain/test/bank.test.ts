@@ -6,6 +6,7 @@ import {
   isValidTaxNumber,
   isValidVatId,
   normalizeIban,
+  isValidEmail,
 } from '../src/index.js';
 
 describe('IBAN (FR-COMP-04)', () => {
@@ -66,5 +67,36 @@ describe('Steuernummer', () => {
 
   it.each(['123/456', 'AB/345/67890', '12345678901234'])('rejects %s', (no) => {
     expect(isValidTaxNumber(no)).toBe(false);
+  });
+});
+
+describe('isValidEmail', () => {
+  it('accepts plausible addresses', () => {
+    for (const ok of ['info@example.com', 'jan.goralewicz@bau.example.de', 'a+b@x.co']) {
+      expect(isValidEmail(ok), ok).toBe(true);
+    }
+  });
+
+  it('rejects others', () => {
+    for (const bad of [
+      '',
+      'info',
+      'info@example',
+      'a@b@c.de',
+      'a b@c.de',
+      'a@.de',
+      'a@b..de',
+      'a@b.',
+    ]) {
+      expect(isValidEmail(bad), bad).toBe(false);
+    }
+    expect(isValidEmail(`${'a'.repeat(250)}@b.de`)).toBe(false);
+  });
+
+  it('stays fast on inputs that made the old pattern slow (ReDoS)', () => {
+    const start = performance.now();
+    expect(isValidEmail(`!@!.${'!.'.repeat(100_000)}`.slice(0, 254) + ' ')).toBe(false);
+    expect(isValidEmail(`!@!.${'!.'.repeat(5_000)}`)).toBe(false);
+    expect(performance.now() - start).toBeLessThan(200);
   });
 });

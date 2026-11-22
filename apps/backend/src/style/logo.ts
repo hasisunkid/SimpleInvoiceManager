@@ -37,11 +37,45 @@ export function sniff(data: Buffer): Kind | null {
     .toString('utf8')
     .replace(/^\uFEFF/, '')
     .trimStart();
-  // Optional XML declaration, comments and DOCTYPE before <svg> (a DOCTYPE is rejected later).
-  const svgStart =
-    /^(<\?xml[^>]*\?>\s*)?((<!--[\s\S]*?-->|<!DOCTYPE[^[>]*(\[[\s\S]*?\])?\s*>)\s*)*<svg[\s>]/i;
-  if (svgStart.test(head)) return 'svg';
-  return null;
+  return startsWithSvg(head) ? 'svg' : null;
+}
+
+/**
+ * Optional XML declaration, comments and DOCTYPE, then `<svg` (a DOCTYPE is rejected later).
+ * A linear scan instead of one big regex: nested repetitions such as `(<!--…-->)*` can
+ * backtrack exponentially on crafted input (ReDoS).
+ */
+export function startsWithSvg(text: string): boolean {
+  let i = 0;
+  const skipSpace = () => {
+    while (i < text.length && /\s/.test(text[i]!)) i++;
+  };
+  /** Moves past `end` (searching from `from`); false if it does not occur. */
+  const skipPast = (end: string, from = i) => {
+    const at = text.indexOf(end, from);
+    if (at === -1) return false;
+    i = at + end.length;
+    return true;
+  };
+  const at = (prefix: string) => text.slice(i, i + prefix.length).toLowerCase() === prefix;
+
+  if (at('<?xml') && !skipPast('?>')) return false;
+  for (;;) {
+    skipSpace();
+    if (at('<!--')) {
+      if (!skipPast('-->', i + 4)) return false;
+    } else if (at('<!doctype')) {
+      const close = text.indexOf('>', i);
+      const subset = text.indexOf('[', i);
+      if (subset !== -1 && (close === -1 || subset < close)) {
+        if (!skipPast(']', subset)) return false;
+      }
+      if (!skipPast('>')) return false;
+    } else {
+      break;
+    }
+  }
+  return at('<svg') && i + 4 < text.length && /[\s>]/.test(text[i + 4]!);
 }
 
 /** Width/height from the PNG IHDR chunk, without decoding pixels. */

@@ -20,7 +20,12 @@ built, linted and tested with single commands (TR-08).
 - `tsc -b` with project references builds `packages/*` and `apps/backend`; the frontend is
   type-checked with `vue-tsc` and bundled by Vite.
 - **Pinned majors:** TypeScript 5.9 (typescript-eslint does not support TS ≥ 6.1 yet),
-  ESLint 9, Vite 7, Vitest 3 – newer majors exist but bring no benefit for v1.
+  ESLint 9, Vite 7, Vitest 5 (raised from 3 in 2026-11 for security fixes in Vitest/Tinypool;
+  Vite stays on 7 – declared at the root so Vitest does not pull in Vite 8).
+- **Dependency overrides** in the root `package.json` force fixed `minimatch` (≥ 11.0.1) and
+  `glob` (≥ 14.0.2) where development tools (Testcontainers → archiver, `@vue/test-utils` →
+  js-beautify) still pin vulnerable ranges. They are scoped to the vulnerable versions and can
+  be removed once those tools update; `npm audit` must stay clean.
 - One root `vitest.config.ts` runs all workspace test projects.
 
 ## Consequences
